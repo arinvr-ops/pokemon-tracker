@@ -764,9 +764,8 @@ async function doSearch() {
   btn.disabled = true;
   let handled = false;
   try {
-    const url = 'https://www.pokemonpricetracker.com/api/v2/cards?search='
-      + encodeURIComponent(q) + '&limit=20';
-    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + getKey() } });
+    const url = '/api/search?query=' + encodeURIComponent(q);
+    const res = await fetch(url);
     const text = await res.text();
     console.log('[PKM search] status:', res.status, 'body:', text.slice(0, 400));
     if (!res.ok) {
