@@ -154,6 +154,7 @@ header {
 .tile-img { aspect-ratio: 2/3; background: var(--surface-2); position: relative; overflow: hidden; }
 .tile-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .tile-ph  { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-3); font-size: 28px; }
+.tile-ph-name { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 8px; font-family: var(--mono); font-size: 9px; color: var(--text-2); text-align: center; line-height: 1.4; word-break: break-word; }
 
 .add-ov {
   position: absolute; inset: 0; background: rgba(13,13,13,.75);
@@ -230,6 +231,11 @@ header {
 .pimg-ph {
   width: 155px; height: 216px; background: var(--surface-2); border-radius: var(--rs);
   display: flex; align-items: center; justify-content: center; color: var(--text-3); font-size: 36px;
+}
+.pimg-ph-name {
+  width: 155px; height: 216px; background: var(--surface-2); border-radius: var(--rs);
+  display: flex; align-items: center; justify-content: center; padding: 12px;
+  font-family: var(--mono); font-size: 11px; color: var(--text-2); text-align: center; line-height: 1.5;
 }
 
 .psec { display: flex; flex-direction: column; gap: 10px; }
@@ -549,8 +555,8 @@ function cardInfo(r) {
     setName:     r?.set?.name  ?? r?.setName  ?? '',
     cardNumber:  r?.number     ?? r?.cardNumber ?? '',
     rarity:      r?.rarity     ?? '',
-    imageSmall:  r?.images?.small ?? r?.imageSmall ?? r?.image ?? '',
-    imageLarge:  r?.images?.large ?? r?.imageLarge ?? r?.image ?? '',
+    imageSmall:  r?.images?.small ?? r?.image?.small ?? r?.imageSmall ?? r?.image ?? '',
+    imageLarge:  r?.images?.large ?? r?.image?.large ?? r?.imageLarge ?? r?.image ?? '',
   };
 }
 
@@ -702,8 +708,8 @@ function collTile(card) {
 <div class="tile${card.id === selectedId ? ' sel' : ''}" data-id="${esc(card.id)}">
   <div class="tile-img">
     ${card.imageSmall
-      ? `<img src="${esc(card.imageSmall)}" alt="${esc(card.name)}" loading="lazy" onerror="this.style.display='none'">`
-      : `<div class="tile-ph">🃏</div>`}
+      ? `<img src="${esc(card.imageSmall)}" alt="${esc(card.name)}" loading="lazy" crossorigin="anonymous" onerror="this.style.display='none';this.parentNode.insertAdjacentHTML('beforeend','<div class=\\'tile-ph-name\\'>${esc(card.name)}</div>')">`
+      : `<div class="tile-ph-name">${esc(card.name)}</div>`}
   </div>
   <div class="tile-info">
     <div class="tile-name">${esc(card.name)}</div>
@@ -724,8 +730,8 @@ function srchTile(raw) {
 <div class="tile" data-tcgid="${esc(info.tcgPlayerId)}">
   <div class="tile-img">
     ${info.imageSmall
-      ? `<img src="${esc(info.imageSmall)}" alt="${esc(info.name)}" loading="lazy" onerror="this.style.display='none'">`
-      : `<div class="tile-ph">🃏</div>`}
+      ? `<img src="${esc(info.imageSmall)}" alt="${esc(info.name)}" loading="lazy" crossorigin="anonymous" onerror="this.style.display='none';this.parentNode.insertAdjacentHTML('beforeend','<div class=\\'tile-ph-name\\'>${esc(info.name)}</div>')">`
+      : `<div class="tile-ph-name">${esc(info.name)}</div>`}
     ${inColl
       ? `<div class="in-coll">✓ In Collection</div>`
       : `<div class="add-ov"><button class="add-pill">+ Add</button></div>`}
@@ -780,7 +786,8 @@ async function doSearch() {
                 : Array.isArray(data?.data)    ? data.data
                 : Array.isArray(data?.cards)   ? data.cards
                 : Array.isArray(data?.results) ? data.results : [];
-    console.log('[PKM search]', cards.length, 'cards; first:', cards[0]);
+    console.log('[PKM search]', cards.length, 'cards');
+    if (cards[0]) console.log('[PKM search] full first card:', JSON.stringify(cards[0], null, 2));
     if (!cards.length) {
       const keys = Object.keys(data || {}).join(', ') || '(empty)';
       showSrchErr('No results for "' + q + '"', 'Response keys: ' + keys);
@@ -885,8 +892,8 @@ function renderPanel() {
   document.getElementById('panelBody').innerHTML = `
     <div class="pimg">
       ${(card.imageLarge || card.imageSmall)
-        ? `<img src="${esc(card.imageLarge || card.imageSmall)}" alt="${esc(card.name)}" onerror="this.style.display='none'">`
-        : `<div class="pimg-ph">🃏</div>`}
+        ? `<img src="${esc(card.imageLarge || card.imageSmall)}" alt="${esc(card.name)}" crossorigin="anonymous" onerror="this.style.display='none';this.parentNode.insertAdjacentHTML('beforeend','<div class=\\'pimg-ph-name\\'>${esc(card.name)}</div>')">`
+        : `<div class="pimg-ph-name">${esc(card.name)}</div>`}
     </div>
 
     <div class="psec">
