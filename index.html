@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <style>
 /* ── CSS VARIABLES ─────────────────────────────────────────────────── */
 :root {
@@ -29,7 +30,7 @@
   --red-bg:    rgba(204,0,0,.12);
   --r:         8px;
   --rs:        4px;
-  --panel-w:   400px;
+  --panel-w:   480px;
   --mono:      'DM Mono', 'Courier New', monospace;
   --sans:      'Inter', system-ui, sans-serif;
   --ease:      .2s ease;
@@ -211,9 +212,11 @@ header {
 
 .panel-hdr {
   flex-shrink: 0; display: flex; align-items: center; gap: 10px;
-  padding: 14px 18px; border-bottom: 1px solid var(--border);
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
 }
-.panel-ttl { flex: 1; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.panel-hdr-info { flex: 1; overflow: hidden; }
+.panel-ttl { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.panel-sub { font-size: 10px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
 .x-btn {
   width: 26px; height: 26px; flex-shrink: 0;
   background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--rs);
@@ -223,48 +226,72 @@ header {
 }
 .x-btn:hover { border-color: #ff4444; color: #ff4444; }
 
-.panel-body { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 18px; }
+.panel-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
 
-/* panel internals */
-.pimg { display: flex; justify-content: center; }
-.pimg img { max-height: 230px; max-width: 100%; border-radius: var(--rs); object-fit: contain; }
-.pimg-ph {
-  width: 155px; height: 216px; background: var(--surface-2); border-radius: var(--rs);
-  display: flex; align-items: center; justify-content: center; color: var(--text-3); font-size: 36px;
+/* ── NEW PANEL LAYOUT ──────────────────────────────────────────────── */
+.panel-top { display: flex; gap: 14px; }
+.panel-img-col { flex-shrink: 0; }
+.panel-card-img { width: 155px; border-radius: var(--r); display: block; }
+.panel-card-img-ph {
+  width: 155px; height: 217px; background: var(--surface-2); border-radius: var(--r);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; color: var(--text-3); font-size: 28px;
 }
-.pimg-ph-name {
-  width: 155px; height: 216px; background: var(--surface-2); border-radius: var(--rs);
-  display: flex; align-items: center; justify-content: center; padding: 12px;
-  font-family: var(--mono); font-size: 11px; color: var(--text-2); text-align: center; line-height: 1.5;
+.panel-info-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+
+/* TCGPlayer price block */
+.tcg-block {
+  background: var(--surface-2); border: 1px solid rgba(255,203,5,.2);
+  border-radius: var(--r); padding: 12px;
+}
+.tcg-block-lbl { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); margin-bottom: 4px; }
+.tcg-block-price { font-family: var(--mono); font-size: 22px; font-weight: 500; color: var(--amber); line-height: 1; margin-bottom: 6px; }
+.tcg-block-meta { display: flex; align-items: center; justify-content: space-between; }
+.tcg-block-loading { font-size: 11px; color: var(--text-3); font-style: italic; }
+
+/* Section */
+.sec { display: flex; flex-direction: column; gap: 10px; }
+.sec-hdr {
+  font-size: 9px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--text-3); padding-bottom: 6px; border-bottom: 1px solid var(--border);
 }
 
-.psec { display: flex; flex-direction: column; gap: 10px; }
-.psec-lbl {
-  font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3);
-  padding-bottom: 6px; border-bottom: 1px solid var(--border);
+/* PSA graded prices */
+.psa-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.psa-box {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--rs); padding: 10px 6px; text-align: center;
 }
+.psa-box.hi { border-color: rgba(255,203,5,.3); }
+.psa-grade { font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-3); margin-bottom: 5px; }
+.psa-price { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--amber); margin-bottom: 3px; }
+.psa-sales { font-size: 9px; color: var(--text-3); }
 
-.chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.chip     { font-size: 12px; color: var(--text-2); }
-.chip strong { color: var(--text); }
-.chip-sep { font-size: 12px; color: var(--text-3); }
-
-.pgrid { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; }
-.pcell {
-  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--rs);
-  padding: 7px; text-align: center;
+/* Population */
+.pop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pop-cell {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--rs); padding: 10px; text-align: center;
 }
-.pcell.hi { border-color: rgba(255,203,5,.3); }
-.pc-lbl   { font-size: 9px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); margin-bottom: 4px; }
-.pc-val   { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--text); }
-.pcell.hi .pc-val { color: var(--amber); }
+.pop-lbl { font-size: 9px; color: var(--text-3); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 4px; }
+.pop-val { font-family: var(--mono); font-size: 16px; font-weight: 500; color: var(--text); }
 
-.ebay-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.ebay-cell { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--rs); padding: 8px; }
-.ec-lbl    { font-size: 10px; color: var(--text-3); margin-bottom: 3px; }
-.ec-val    { font-family: var(--mono); font-size: 14px; color: var(--text); }
+/* Condition filter buttons */
+.cond-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+.cond-btn {
+  height: 22px; padding: 0 10px; background: transparent;
+  border: 1px solid var(--border); border-radius: 20px;
+  color: var(--text-3); font-size: 10px; font-weight: 500; cursor: pointer;
+  transition: all var(--ease);
+}
+.cond-btn.active { background: var(--amber-bg); border-color: var(--amber); color: var(--amber); }
+.cond-btn:hover:not(.active) { border-color: var(--text-3); color: var(--text-2); }
 
-.pmeta     { display: flex; align-items: center; justify-content: space-between; }
+/* Chart */
+.chart-wrap { position: relative; height: 150px; }
+.chart-empty { height: 150px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--text-3); background: var(--surface-2); border-radius: var(--rs); border: 1px solid var(--border); }
+
+/* Panel form elements */
 .pmeta-txt { font-size: 11px; color: var(--text-3); font-family: var(--mono); }
 .ref-btn {
   background: transparent; border: 1px solid var(--border); border-radius: var(--rs);
@@ -330,13 +357,18 @@ header {
 .gl-val.neg { color: #ff4444; }
 .gl-val.dim { color: var(--text-3); }
 
-.del-btn {
-  width: 100%; height: 36px;
-  background: var(--red-bg); border: 1px solid rgba(204,0,0,.25); border-radius: var(--rs);
-  color: #ff4444; font-family: var(--sans); font-size: 12px; font-weight: 500; cursor: pointer;
-  transition: all var(--ease);
+/* Action buttons */
+.action-btn {
+  width: 100%; height: 38px;
+  background: var(--amber); border: none; border-radius: var(--rs);
+  color: #111; font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background var(--ease);
 }
-.del-btn:hover { background: rgba(204,0,0,.18); border-color: #ff4444; }
+.action-btn:hover { background: var(--amber-dim); }
+.action-btn.remove {
+  background: var(--red-bg); border: 1px solid rgba(204,0,0,.25); color: #ff4444;
+}
+.action-btn.remove:hover { background: rgba(204,0,0,.18); border-color: #ff4444; }
 
 /* ── SETTINGS MODAL ────────────────────────────────────────────────── */
 .mback { display: none; position: fixed; inset: 0; background: rgba(13,13,13,.88); z-index: 300; align-items: center; justify-content: center; }
@@ -387,6 +419,9 @@ header {
   .ov.open { background: rgba(13,13,13,.65); }
   .search-wrap { max-width: none; }
   .logo { display: none; }
+  .panel-top { flex-direction: column; }
+  .panel-card-img { width: 100%; max-width: 200px; margin: 0 auto; }
+  .panel-card-img-ph { width: 100%; max-width: 200px; margin: 0 auto; }
 }
 
 .hidden { display: none !important; }
@@ -397,10 +432,6 @@ header {
   border-radius: var(--rs); white-space: nowrap; letter-spacing: -.01em;
 }
 .credits-badge.low { color: #ff4444; border-color: rgba(204,0,0,.35); }
-.psub-lbl {
-  font-size: 9px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
-  color: var(--text-3); margin-top: 8px; margin-bottom: 4px;
-}
 </style>
 </head>
 <body>
@@ -462,8 +493,11 @@ header {
 <div class="ov" id="panelOv"></div>
 <div class="panel" id="panel">
   <div class="panel-hdr">
+    <div class="panel-hdr-info">
+      <div class="panel-ttl" id="panelTtl">—</div>
+      <div class="panel-sub" id="panelSub"></div>
+    </div>
     <button class="x-btn" id="panelClose">✕</button>
-    <div class="panel-ttl" id="panelTtl">—</div>
   </div>
   <div class="panel-body" id="panelBody"></div>
 </div>
@@ -473,10 +507,10 @@ header {
   <div class="modal">
     <h3>Settings</h3>
     <div class="mfield">
-      <label>API Key</label>
+      <label>PokemonPriceTracker API Key</label>
       <input type="text" id="apiKeyInp" placeholder="pokeprice_free_…">
     </div>
-    <p style="font-size:11px;color:var(--text-3);line-height:1.6">Leave blank to use the default key.</p>
+    <p style="font-size:11px;color:var(--text-3);line-height:1.6">Used for price lookups when opening a card detail. Leave blank to use the default key.</p>
     <div class="mbtns">
       <button class="mbtn-sec" id="settingsCancel">Cancel</button>
       <button class="mbtn-pri" id="settingsSave">Save</button>
@@ -488,22 +522,25 @@ header {
 
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────────
-const DEFAULT_KEY = 'pokeprice_free_ecf3ab9f5004051b7ac21e9cfc81bce2f9398e27e524544d';
-const API_BASE    = 'https://www.pokemonpricetracker.com/api/v2';
-const COLL_KEY    = 'pkm-collection-v1';
-const AKEY_STORE  = 'pkm-api-key';
-const STALE_MS    = 24 * 60 * 60 * 1000;
-const SRCH_CACHE_KEY = 'pkm-search-cache-v1';
+const DEFAULT_KEY      = 'pokeprice_free_ecf3ab9f5004051b7ac21e9cfc81bce2f9398e27e524544d';
+const TCG_SEARCH_BASE  = 'https://api.pokemontcg.io/v2/cards';
+const COLL_KEY         = 'pkm-collection-v1';
+const AKEY_STORE       = 'pkm-api-key';
+const STALE_MS         = 24 * 60 * 60 * 1000;
+const SRCH_CACHE_KEY   = 'pkm-search-cache-v1';
+const PRICE_CONDITIONS = ['Near Mint', 'Lightly Played', 'Moderately Played', 'Heavily Played', 'Damaged'];
 
 // ── STATE ─────────────────────────────────────────────────────────────
-let collection  = [];
-let srchResults = [];
-let activeTab   = 'collection';
-let selectedId  = null;
-let fetching    = false;
+let collection       = [];
+let srchResults      = [];
+let activeTab        = 'collection';
+let selectedId       = null;
+let fetching         = false;
+let priceChartInst   = null;
+let activeChartCond  = 'Near Mint';
 
 // ── STORAGE ───────────────────────────────────────────────────────────
-const getKey  = () => localStorage.getItem(AKEY_STORE) || DEFAULT_KEY;
+const getKey   = () => localStorage.getItem(AKEY_STORE) || DEFAULT_KEY;
 const saveColl = () => localStorage.setItem(COLL_KEY, JSON.stringify(collection));
 
 function loadColl() {
@@ -535,14 +572,6 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // ── API ───────────────────────────────────────────────────────────────
-async function apiSearch(q) {
-  const r = await fetch(`${API_BASE}/cards?search=${encodeURIComponent(q)}&limit=20`, {
-    headers: { Authorization: `Bearer ${getKey()}` }
-  });
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  return r.json();
-}
-
 async function apiFetchDetail(tcgId) {
   const r = await fetch(`/api/card?tcgPlayerId=${encodeURIComponent(tcgId)}`, {
     headers: { Authorization: `Bearer ${getKey()}` }
@@ -563,16 +592,26 @@ function toCards(data) {
 }
 
 function cardInfo(r) {
-  const fallback = r?.images?.small ?? r?.image?.small ?? r?.imageSmall ?? r?.image ?? '';
+  // TCGPlayer ID: try tcgplayer.id, then extract from URL, then other formats
+  let tcgId = r?.tcgplayer?.id ?? r?.tcgPlayerId ?? '';
+  if (!tcgId && r?.tcgplayer?.url) {
+    const m = String(r.tcgplayer.url).match(/\/(\d+)/);
+    if (m) tcgId = m[1];
+  }
+  if (!tcgId) tcgId = r?.id ?? r?._id ?? '';
+
+  // Images: prefer Pokemon TCG API format, fall back to PokemonPriceTracker CDN fields
+  const ptcgSmall = r?.images?.small ?? r?.image?.small ?? '';
+  const ptcgLarge = r?.images?.large ?? r?.image?.large ?? '';
   return {
-    tcgPlayerId: String(r?.tcgPlayerId ?? r?.id ?? r?._id ?? ''),
+    tcgPlayerId: String(tcgId),
     name:        r?.name       ?? 'Unknown',
     setName:     r?.set?.name  ?? r?.setName  ?? '',
     cardNumber:  r?.number     ?? r?.cardNumber ?? '',
     rarity:      r?.rarity     ?? '',
-    imageThumb:  r?.imageCdnUrl200 ?? fallback,
-    imageSmall:  r?.imageCdnUrl400 ?? r?.imageCdnUrl200 ?? fallback,
-    imageLarge:  r?.imageCdnUrl800 ?? r?.imageCdnUrl400 ?? r?.images?.large ?? r?.image?.large ?? r?.imageLarge ?? r?.image ?? '',
+    imageThumb:  ptcgSmall || r?.imageCdnUrl200 ?? r?.imageSmall ?? r?.image ?? '',
+    imageSmall:  ptcgSmall || r?.imageCdnUrl400 ?? r?.imageCdnUrl200 ?? r?.imageSmall ?? '',
+    imageLarge:  ptcgLarge || r?.imageCdnUrl800 ?? r?.imageCdnUrl400 ?? r?.imageLarge ?? '',
   };
 }
 
@@ -582,7 +621,7 @@ function priceInfo(r) {
   if (p.market != null || p.low != null)
     return { market: p.market, low: p.low, mid: p.mid, high: p.high,
              listings: p.listings ?? null, conditions: p.conditions ?? null, variants: p.variants ?? null };
-  for (const v of ['normal', 'holofoil', 'reverseHolofoil', '1stEditionHolofoil', 'unlimited']) {
+  for (const v of ['holofoil', 'normal', 'reverseHolofoil', '1stEditionHolofoil', 'unlimited']) {
     if (p[v]?.market != null || p[v]?.low != null)
       return { market: p[v].market, low: p[v].low, mid: p[v].mid, high: p[v].high,
                listings: null, conditions: null, variants: null };
@@ -590,20 +629,58 @@ function priceInfo(r) {
   return null;
 }
 
-function ebayInfo(r) {
-  const e = r?.ebay ?? r?.ebayPrices ?? null;
+function psaInfo(r) {
+  const e = r?.ebay ?? r?.ebayPrices ?? r?.psa ?? null;
   if (!e) return null;
   return {
-    psa9:  e?.psa9  ?? e?.['PSA 9']  ?? null,
-    psa10: e?.psa10 ?? e?.['PSA 10'] ?? null,
+    psa10: {
+      price: e?.psa10 ?? e?.['PSA 10'] ?? null,
+      count: e?.psa10Count ?? e?.psa10Sales ?? e?.['PSA 10 Count'] ?? null,
+    },
+    psa9: {
+      price: e?.psa9  ?? e?.['PSA 9']  ?? null,
+      count: e?.psa9Count  ?? e?.psa9Sales  ?? e?.['PSA 9 Count']  ?? null,
+    },
+    psa8: {
+      price: e?.psa8  ?? e?.['PSA 8']  ?? null,
+      count: e?.psa8Count  ?? e?.psa8Sales  ?? e?.['PSA 8 Count']  ?? null,
+    },
   };
 }
 
-// ── IMAGE PROXY ───────────────────────────────────────────────────────
-const proxyImg = url =>
-  url && url.includes('tcgplayer-cdn.tcgplayer.com')
-    ? '/api/image?url=' + encodeURIComponent(url)
-    : (url || '');
+function populationInfo(r) {
+  const pop = r?.population ?? r?.pop ?? r?.psaPopulation ?? null;
+  if (!pop) return null;
+  return {
+    total:   pop?.total ?? pop?.totalGraded ?? null,
+    gemRate: pop?.gemRate ?? pop?.gem_rate ?? pop?.psa10Rate ?? null,
+  };
+}
+
+function priceHistoryInfo(r) {
+  return r?.priceHistory ?? r?.price_history ?? r?.history ?? r?.historicalPrices ?? null;
+}
+
+// ── IMAGE FALLBACK ────────────────────────────────────────────────────
+function imgFallback(imgEl) {
+  imgEl.onerror = null;
+  const name = imgEl.dataset.name;
+  if (!name) { imgEl.style.display = 'none'; return; }
+  fetch(TCG_SEARCH_BASE + '?q=name:' + encodeURIComponent(name) + '&pageSize=1')
+    .then(r => r.json())
+    .then(d => {
+      if (d.data && d.data[0]) {
+        imgEl.src = d.data[0].images.small;
+      } else {
+        imgEl.style.display = 'none';
+        const ph = document.createElement('div');
+        ph.className = 'tile-ph-name';
+        ph.textContent = name;
+        if (imgEl.parentNode) imgEl.parentNode.appendChild(ph);
+      }
+    })
+    .catch(() => { imgEl.style.display = 'none'; });
+}
 
 // ── CREDITS ───────────────────────────────────────────────────────────
 function updateCredits(val) {
@@ -633,32 +710,6 @@ function setCachedSearch(q, results) {
   } catch {}
 }
 
-// ── PRICE TABLE HELPERS ───────────────────────────────────────────────
-function fmtKey(k) {
-  return k
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/^1st\b/, '1st ')
-    .replace(/Holofoil/g, 'Holo')
-    .replace(/Edition/g, 'Ed')
-    .replace(/Reverse\s*/g, 'Rev ')
-    .trim();
-}
-
-function condTableHtml(obj, title) {
-  if (!obj || typeof obj !== 'object') return '';
-  const entries = Object.entries(obj).filter(([, v]) => v != null && !isNaN(Number(v)));
-  if (!entries.length) return '';
-  const cols = Math.min(entries.length, 3);
-  return `<div class="psub-lbl">${esc(title)}</div>
-    <div class="pgrid" style="grid-template-columns:repeat(${cols},1fr)">
-      ${entries.map(([k, v]) => `
-        <div class="pcell">
-          <div class="pc-lbl">${esc(fmtKey(k))}</div>
-          <div class="pc-val">${fmt(v)}</div>
-        </div>`).join('')}
-    </div>`;
-}
-
 // ── COLLECTION OPS ────────────────────────────────────────────────────
 const getPrice = card => {
   if (card.useManualPrice && card.manualPrice != null) return Number(card.manualPrice);
@@ -670,14 +721,16 @@ function addCard(raw) {
   if (!info.tcgPlayerId) return null;
   const dup = collection.find(c => c.tcgPlayerId === info.tcgPlayerId);
   if (dup) return dup.id;
-  const prices = priceInfo(raw);
   const card = {
     id: uuid(), ...info,
     condition: 'raw', grade: null,
     quantity: 1, costBasis: null,
     useManualPrice: false, manualPrice: null,
-    livePrices: prices, ebayPrices: ebayInfo(raw),
-    lastPriceFetch: prices ? Date.now() : null,
+    livePrices: null,
+    psaPrices: null,
+    population: null,
+    priceHistory: null,
+    lastPriceFetch: null,
     addedAt: Date.now(),
   };
   collection.unshift(card);
@@ -782,11 +835,12 @@ function collTile(card) {
   const manual = card.useManualPrice && card.manualPrice != null;
   const cond   = card.condition === 'graded' ? 'graded' : 'raw';
   const label  = card.condition === 'graded' && card.grade ? card.grade : (cond === 'graded' ? 'Graded' : 'Raw');
+  const imgSrc = card.imageThumb || card.imageSmall || '';
   return `
 <div class="tile${card.id === selectedId ? ' sel' : ''}" data-id="${esc(card.id)}">
   <div class="tile-img">
-    ${(card.imageThumb || card.imageSmall)
-      ? `<img src="${esc(proxyImg(card.imageThumb || card.imageSmall))}" alt="${esc(card.name)}" loading="lazy" onerror="this.style.display='none';this.parentNode.insertAdjacentHTML('beforeend','<div class=\\'tile-ph-name\\'>${esc(card.name)}</div>')">`
+    ${imgSrc
+      ? `<img src="${esc(imgSrc)}" alt="${esc(card.name)}" loading="lazy" onerror="imgFallback(this)" data-name="${esc(card.name)}">`
       : `<div class="tile-ph-name">${esc(card.name)}</div>`}
   </div>
   <div class="tile-info">
@@ -802,13 +856,13 @@ function collTile(card) {
 
 function srchTile(raw) {
   const info   = cardInfo(raw);
-  const prices = priceInfo(raw);
   const inColl = collection.some(c => c.tcgPlayerId === info.tcgPlayerId);
+  const imgSrc = info.imageThumb || info.imageSmall || '';
   return `
 <div class="tile" data-tcgid="${esc(info.tcgPlayerId)}">
   <div class="tile-img">
-    ${info.imageSmall
-      ? `<img src="${esc(proxyImg(info.imageSmall))}" alt="${esc(info.name)}" loading="lazy" onerror="this.style.display='none';this.parentNode.insertAdjacentHTML('beforeend','<div class=\\'tile-ph-name\\'>${esc(info.name)}</div>')">`
+    ${imgSrc
+      ? `<img src="${esc(imgSrc)}" alt="${esc(info.name)}" loading="lazy" onerror="imgFallback(this)" data-name="${esc(info.name)}">`
       : `<div class="tile-ph-name">${esc(info.name)}</div>`}
     ${inColl
       ? `<div class="in-coll">✓ In Collection</div>`
@@ -818,8 +872,7 @@ function srchTile(raw) {
     <div class="tile-name">${esc(info.name)}</div>
     <div class="tile-set">${esc(info.setName)}${info.cardNumber ? ' · #' + esc(info.cardNumber) : ''}</div>
     <div class="tile-foot">
-      <span class="tile-price">${fmt(prices?.market)}</span>
-      ${info.rarity ? `<span style="font-size:9px;color:var(--text-3)">${esc(info.rarity)}</span>` : ''}
+      ${info.rarity ? `<span style="font-size:10px;color:var(--text-3)">${esc(info.rarity)}</span>` : '<span></span>'}
     </div>
   </div>
 </div>`;
@@ -856,28 +909,19 @@ async function doSearch() {
   btn.disabled = true;
   let handled = false;
   try {
-    const url = '/api/search?query=' + encodeURIComponent(q);
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${getKey()}` } });
-    updateCredits(res.headers.get('X-RateLimit-Remaining'));
+    const url = TCG_SEARCH_BASE + '?q=name:' + encodeURIComponent(q) + '&pageSize=8';
+    const res  = await fetch(url);
     const text = await res.text();
-    console.log('[PKM search] status:', res.status, 'body:', text.slice(0, 400));
     if (!res.ok) {
-      showSrchErr('API error ' + res.status, text.slice(0, 800));
+      showSrchErr('Search API error ' + res.status, text.slice(0, 800));
       handled = true; return;
     }
     let data;
     try { data = JSON.parse(text); }
-    catch (_) { showSrchErr('Bad JSON from API', text.slice(0, 800)); handled = true; return; }
-    console.log('[PKM search] parsed:', data);
-    const cards = Array.isArray(data)          ? data
-                : Array.isArray(data?.data)    ? data.data
-                : Array.isArray(data?.cards)   ? data.cards
-                : Array.isArray(data?.results) ? data.results : [];
-    console.log('[PKM search]', cards.length, 'cards');
-    if (cards[0]) console.log('[PKM search] full first card:', JSON.stringify(cards[0], null, 2));
+    catch (_) { showSrchErr('Bad JSON from search API', text.slice(0, 800)); handled = true; return; }
+    const cards = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
     if (!cards.length) {
-      const keys = Object.keys(data || {}).join(', ') || '(empty)';
-      showSrchErr('No results for "' + q + '"', 'Response keys: ' + keys);
+      showSrchErr('No results for "' + q + '"', 'Try a different search term');
       handled = true; return;
     }
     srchResults = cards;
@@ -901,7 +945,7 @@ function handleSrchClick(tcgId) {
   if (!raw) return;
   const id = addCard(raw);
   if (!id) return;
-  toast('Added to collection', 'ok');
+  toast('Added · fetching prices…', 'ok');
   renderStats(); rebuildSetDD(); renderGrid();
   setTab('collection');
   openPanel(id);
@@ -928,6 +972,7 @@ function openPanel(id) {
 }
 
 function closePanel() {
+  if (priceChartInst) { priceChartInst.destroy(); priceChartInst = null; }
   selectedId = null;
   document.getElementById('panel').classList.remove('open');
   document.getElementById('panelOv').classList.remove('open');
@@ -937,31 +982,94 @@ function closePanel() {
 function renderPanel() {
   const card = collection.find(c => c.id === selectedId);
   if (!card) return;
-  document.getElementById('panelTtl').textContent = card.name;
 
   const p    = getPrice(card);
   const cost = card.costBasis != null ? Number(card.costBasis) : null;
   const qty  = Number(card.quantity) || 1;
   const lp   = card.livePrices;
-  const ep   = card.ebayPrices;
+  // Support both new psaPrices and legacy ebayPrices
+  const psa  = card.psaPrices ?? (card.ebayPrices ? {
+    psa10: { price: card.ebayPrices.psa10, count: null },
+    psa9:  { price: card.ebayPrices.psa9,  count: null },
+    psa8:  { price: null, count: null },
+  } : null);
+  const pop  = card.population ?? null;
+  const hist = card.priceHistory ?? null;
+  const hasPrices = !!lp;
 
-  const pricesHtml = lp
-    ? `<div class="pgrid" style="grid-template-columns:repeat(3,1fr)">
-        <div class="pcell hi"><div class="pc-lbl">Market</div><div class="pc-val">${fmt(lp.market)}</div></div>
-        <div class="pcell"   ><div class="pc-lbl">Low</div>   <div class="pc-val">${fmt(lp.low)}</div></div>
-        <div class="pcell"   ><div class="pc-lbl">Listings</div><div class="pc-val">${lp.listings != null ? lp.listings : '—'}</div></div>
+  // Update header
+  document.getElementById('panelTtl').textContent = card.name;
+  document.getElementById('panelSub').textContent =
+    [card.setName, card.cardNumber ? '#' + card.cardNumber : '', card.rarity].filter(Boolean).join(' · ');
+
+  // Image
+  const imgSrc = card.imageLarge || card.imageSmall || '';
+  const imgHtml = imgSrc
+    ? `<img class="panel-card-img" src="${esc(imgSrc)}" alt="${esc(card.name)}" onerror="imgFallback(this)" data-name="${esc(card.name)}">`
+    : `<div class="panel-card-img-ph">🃏</div>`;
+
+  // TCGPlayer price block
+  const priceDisplay = hasPrices ? fmt(lp.market) : (card.lastPriceFetch === null ? 'Loading…' : '—');
+  const tcgBlockHtml = `
+    <div class="tcg-block">
+      <div class="tcg-block-lbl">Near Mint · TCGPlayer Market</div>
+      <div class="tcg-block-price">${priceDisplay}</div>
+      <div class="tcg-block-meta">
+        <span class="pmeta-txt">updated ${timeAgo(card.lastPriceFetch)}</span>
+        <button class="ref-btn" id="refBtn">↻ refresh</button>
       </div>
-      ${condTableHtml(lp.conditions, 'By Condition')}
-      ${condTableHtml(lp.variants,   'By Variant')}`
-    : `<div style="font-size:12px;color:var(--text-3)">No live price data available</div>`;
+    </div>`;
 
-  const ebayHtml = (ep?.psa9 != null || ep?.psa10 != null)
-    ? `<div class="ebay-grid">
-        <div class="ebay-cell"><div class="ec-lbl">PSA 9 (eBay)</div> <div class="ec-val">${fmt(ep.psa9)}</div></div>
-        <div class="ebay-cell"><div class="ec-lbl">PSA 10 (eBay)</div><div class="ec-val">${fmt(ep.psa10)}</div></div>
-      </div>`
-    : '';
+  // Raw / Graded condition toggle
+  const condHtml = `
+    <div class="tog-grp">
+      <button class="tog-opt${card.condition !== 'graded' ? ' active' : ''}" id="condRaw">Raw</button>
+      <button class="tog-opt${card.condition === 'graded' ? ' active' : ''}" id="condGrd">Graded</button>
+    </div>
+    ${card.condition === 'graded' ? `
+      <div class="frow" style="margin-top:6px">
+        <span class="flbl">Grade</span>
+        <input class="finput" type="text" id="gradeInp" placeholder="PSA 10" value="${esc(card.grade || '')}">
+      </div>` : ''}`;
 
+  // PSA graded prices
+  const psaBoxes = [
+    { label: 'PSA 10', key: 'psa10', hi: true },
+    { label: 'PSA 9',  key: 'psa9',  hi: false },
+    { label: 'PSA 8',  key: 'psa8',  hi: false },
+  ].map(({ label, key, hi }) => {
+    const d = psa?.[key];
+    return `<div class="psa-box${hi ? ' hi' : ''}">
+      <div class="psa-grade">${label}</div>
+      <div class="psa-price">${d?.price != null ? fmt(d.price) : '—'}</div>
+      <div class="psa-sales">${d?.count != null ? d.count + ' sales' : 'no data'}</div>
+    </div>`;
+  }).join('');
+
+  // Population
+  const gemRateDisplay = pop?.gemRate != null
+    ? (Number(pop.gemRate) <= 1
+        ? (Number(pop.gemRate) * 100).toFixed(1) + '%'
+        : Number(pop.gemRate).toFixed(1) + '%')
+    : '—';
+  const popHtml = `
+    <div class="pop-grid">
+      <div class="pop-cell">
+        <div class="pop-lbl">Total Graded</div>
+        <div class="pop-val">${pop?.total != null ? Number(pop.total).toLocaleString() : '—'}</div>
+      </div>
+      <div class="pop-cell">
+        <div class="pop-lbl">Gem Rate</div>
+        <div class="pop-val">${gemRateDisplay}</div>
+      </div>
+    </div>`;
+
+  // Chart condition buttons
+  const condBtnsHtml = PRICE_CONDITIONS.map(c =>
+    `<button class="cond-btn${c === activeChartCond ? ' active' : ''}" data-cond="${esc(c)}">${esc(c)}</button>`
+  ).join('');
+
+  // Gain/loss
   let glHtml;
   if (p != null && cost != null) {
     const gain = (p - cost) * qty;
@@ -979,46 +1087,37 @@ function renderPanel() {
   }
 
   document.getElementById('panelBody').innerHTML = `
-    <div class="pimg">
-      ${(card.imageLarge || card.imageSmall)
-        ? `<img src="${esc(proxyImg(card.imageLarge || card.imageSmall))}" alt="${esc(card.name)}" onerror="this.style.display='none';this.parentNode.insertAdjacentHTML('beforeend','<div class=\\'pimg-ph-name\\'>${esc(card.name)}</div>')">`
-        : `<div class="pimg-ph-name">${esc(card.name)}</div>`}
-    </div>
-
-    <div class="psec">
-      <div class="psec-lbl">Card Info</div>
-      <div class="chips">
-        ${card.setName    ? `<span class="chip"><strong>${esc(card.setName)}</strong></span>` : ''}
-        ${card.cardNumber ? `<span class="chip-sep">·</span><span class="chip">#${esc(card.cardNumber)}</span>` : ''}
-        ${card.rarity     ? `<span class="chip-sep">·</span><span class="chip" style="color:var(--text-3)">${esc(card.rarity)}</span>` : ''}
+    <!-- Image + Price block -->
+    <div class="panel-top">
+      <div class="panel-img-col">${imgHtml}</div>
+      <div class="panel-info-col">
+        ${tcgBlockHtml}
+        ${condHtml}
       </div>
     </div>
 
-    <div class="psec">
-      <div class="psec-lbl">Market Prices</div>
-      ${pricesHtml}
-      ${ebayHtml}
-      <div class="pmeta">
-        <span class="pmeta-txt">updated ${timeAgo(card.lastPriceFetch)}</span>
-        <button class="ref-btn" id="refBtn">↻ refresh</button>
-      </div>
+    <!-- PSA Graded Prices -->
+    <div class="sec">
+      <div class="sec-hdr">PSA Graded Prices</div>
+      <div class="psa-grid">${psaBoxes}</div>
     </div>
 
-    <div class="psec">
-      <div class="psec-lbl">Condition</div>
-      <div class="tog-grp">
-        <button class="tog-opt${card.condition !== 'graded' ? ' active' : ''}" id="condRaw">Raw</button>
-        <button class="tog-opt${card.condition === 'graded' ? ' active' : ''}" id="condGrd">Graded</button>
-      </div>
-      ${card.condition === 'graded' ? `
-        <div class="frow" style="margin-top:8px">
-          <span class="flbl">Grade</span>
-          <input class="finput" type="text" id="gradeInp" placeholder="PSA 10" value="${esc(card.grade||'')}">
-        </div>` : ''}
+    <!-- Population -->
+    <div class="sec">
+      <div class="sec-hdr">Population</div>
+      ${popHtml}
     </div>
 
-    <div class="psec">
-      <div class="psec-lbl">Price Override</div>
+    <!-- Price History Chart -->
+    <div class="sec">
+      <div class="sec-hdr">Raw Card Price History</div>
+      <div class="cond-btns">${condBtnsHtml}</div>
+      <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+    </div>
+
+    <!-- Price Override -->
+    <div class="sec">
+      <div class="sec-hdr">Price Override</div>
       <div class="sw-row">
         <span class="flbl">Use manual price</span>
         <button class="sw${card.useManualPrice ? ' on' : ''}" id="swOverride"></button>
@@ -1031,8 +1130,9 @@ function renderPanel() {
         </div>` : ''}
     </div>
 
-    <div class="psec">
-      <div class="psec-lbl">Ownership</div>
+    <!-- Ownership -->
+    <div class="sec">
+      <div class="sec-hdr">Ownership</div>
       <div class="frow">
         <span class="flbl">Quantity</span>
         <div class="qty-wrap">
@@ -1046,7 +1146,7 @@ function renderPanel() {
         <div style="display:flex;align-items:center;gap:5px">
           <span style="color:var(--text-3);font-size:12px">$</span>
           <input class="finput" type="number" id="costInp" step="0.01" min="0"
-            placeholder="0.00" value="${card.costBasis != null ? card.costBasis : ''}">
+            placeholder="0.00" value="${cost != null ? cost : ''}">
         </div>
       </div>
     </div>
@@ -1054,11 +1154,11 @@ function renderPanel() {
     ${glHtml}
 
     <div style="padding-bottom:4px">
-      <button class="del-btn" id="delBtn">Remove from Collection</button>
+      <button class="action-btn remove" id="delBtn">Remove from Collection</button>
     </div>
   `;
 
-  // Wire panel events
+  // Wire events
   document.getElementById('refBtn').addEventListener('click', manualRefresh);
   document.getElementById('condRaw').addEventListener('click', () => setCondition('raw'));
   document.getElementById('condGrd').addEventListener('click', () => setCondition('graded'));
@@ -1085,6 +1185,98 @@ function renderPanel() {
     const n = e.target.value === '' ? null : Number(e.target.value);
     patchCard(selectedId, { costBasis: n });
     redrawGL();
+  });
+
+  // Chart condition buttons
+  document.querySelectorAll('.cond-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeChartCond = btn.dataset.cond;
+      document.querySelectorAll('.cond-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderChart(hist, activeChartCond);
+    });
+  });
+
+  // Render chart after DOM settles
+  requestAnimationFrame(() => renderChart(hist, activeChartCond));
+}
+
+// ── CHART ─────────────────────────────────────────────────────────────
+function renderChart(historyData, condition) {
+  const canvas = document.getElementById('priceChart');
+  if (!canvas) return;
+
+  if (priceChartInst) { priceChartInst.destroy(); priceChartInst = null; }
+
+  // If no data, show placeholder
+  if (!historyData || !Array.isArray(historyData) || !historyData.length) {
+    canvas.style.display = 'none';
+    const wrap = canvas.parentNode;
+    const existing = wrap.querySelector('.chart-empty');
+    if (!existing) {
+      const ph = document.createElement('div');
+      ph.className = 'chart-empty';
+      ph.textContent = 'No price history available';
+      wrap.appendChild(ph);
+    }
+    return;
+  }
+
+  // Remove placeholder if present
+  const existing = canvas.parentNode.querySelector('.chart-empty');
+  if (existing) existing.remove();
+  canvas.style.display = '';
+
+  // Filter by condition
+  const filtered = condition
+    ? historyData.filter(d => {
+        const c = d.condition ?? d.grade ?? '';
+        return c === condition || c === '' || !c;
+      })
+    : historyData;
+
+  const pts = (filtered.length ? filtered : historyData).map(d => ({
+    x: d.date ?? d.ts ?? d.timestamp ?? d.updatedAt ?? '',
+    y: d.price ?? d.market ?? d.marketPrice ?? d.value ?? null,
+  })).filter(d => d.y != null);
+
+  if (!pts.length) {
+    canvas.style.display = 'none';
+    return;
+  }
+
+  priceChartInst = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: pts.map(d => d.x),
+      datasets: [{
+        data: pts.map(d => d.y),
+        borderColor: '#FFCB05',
+        backgroundColor: 'rgba(255,203,5,0.07)',
+        borderWidth: 2,
+        pointRadius: pts.length > 30 ? 0 : 3,
+        pointBackgroundColor: '#FFCB05',
+        tension: 0.3,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: { label: ctx => fmt(ctx.parsed.y) }
+      }},
+      scales: {
+        x: {
+          ticks: { color: '#555555', font: { size: 9 }, maxTicksLimit: 6, maxRotation: 0 },
+          grid: { color: '#2a2a2a' },
+        },
+        y: {
+          ticks: { color: '#555555', font: { size: 9 }, callback: v => '$' + Number(v).toFixed(0) },
+          grid: { color: '#2a2a2a' },
+        }
+      }
+    }
   });
 }
 
@@ -1164,24 +1356,33 @@ async function doFetchPrice(id) {
   const card = collection.find(c => c.id === id);
   if (!card?.tcgPlayerId) return;
   try {
-    const data   = await apiFetchDetail(card.tcgPlayerId);
-    const cards  = toCards(data);
-    const raw    = cards[0] ?? data;
+    const data  = await apiFetchDetail(card.tcgPlayerId);
+    const cards = toCards(data);
+    const raw   = cards[0] ?? data;
     const prices = priceInfo(raw);
-    const ebay   = ebayInfo(raw);
-    const refreshedInfo = cardInfo(raw);
+    const psa    = psaInfo(raw);
+    const pop    = populationInfo(raw);
+    const hist   = priceHistoryInfo(raw);
+    const info   = cardInfo(raw);
     patchCard(id, {
-      livePrices: prices ?? card.livePrices,
-      ebayPrices: ebay   ?? card.ebayPrices,
+      livePrices:    prices ?? card.livePrices,
+      psaPrices:     psa    ?? card.psaPrices,
+      population:    pop    ?? card.population,
+      priceHistory:  hist   ?? card.priceHistory,
       lastPriceFetch: Date.now(),
-      imageThumb: card.imageThumb || refreshedInfo.imageThumb,
-      imageSmall: card.imageSmall || refreshedInfo.imageSmall,
-      imageLarge: card.imageLarge || refreshedInfo.imageLarge,
+      // Only fill images if card doesn't already have Pokemon TCG API images
+      imageThumb: card.imageThumb || info.imageThumb,
+      imageSmall: card.imageSmall || info.imageSmall,
+      imageLarge: card.imageLarge || info.imageLarge,
     });
     if (id === selectedId) renderPanel();
     renderStats(); renderGrid();
   } catch(e) {
     console.warn('[PKM] price fetch failed:', e.message);
+    if (id === selectedId) {
+      const btn = document.getElementById('refBtn');
+      if (btn) { btn.disabled = false; btn.textContent = '↻ refresh'; }
+    }
     toast('Price refresh failed', 'err');
   }
 }
