@@ -599,6 +599,12 @@ function ebayInfo(r) {
   };
 }
 
+// ── IMAGE PROXY ───────────────────────────────────────────────────────
+const proxyImg = url =>
+  url && url.includes('tcgplayer-cdn.tcgplayer.com')
+    ? '/api/image?url=' + encodeURIComponent(url)
+    : (url || '');
+
 // ── CREDITS ───────────────────────────────────────────────────────────
 function updateCredits(val) {
   const el = document.getElementById('creditsBadge');
@@ -780,7 +786,7 @@ function collTile(card) {
 <div class="tile${card.id === selectedId ? ' sel' : ''}" data-id="${esc(card.id)}">
   <div class="tile-img">
     ${(card.imageThumb || card.imageSmall)
-      ? `<img src="${esc(card.imageThumb || card.imageSmall)}" alt="${esc(card.name)}" loading="lazy" crossorigin="anonymous" onerror="this.style.display='none';this.parentNode.insertAdjacentHTML('beforeend','<div class=\\'tile-ph-name\\'>${esc(card.name)}</div>')">`
+      ? `<img src="${esc(proxyImg(card.imageThumb || card.imageSmall))}" alt="${esc(card.name)}" loading="lazy" onerror="this.style.display='none';this.parentNode.insertAdjacentHTML('beforeend','<div class=\\'tile-ph-name\\'>${esc(card.name)}</div>')">`
       : `<div class="tile-ph-name">${esc(card.name)}</div>`}
   </div>
   <div class="tile-info">
@@ -802,7 +808,7 @@ function srchTile(raw) {
 <div class="tile" data-tcgid="${esc(info.tcgPlayerId)}">
   <div class="tile-img">
     ${info.imageSmall
-      ? `<img src="${esc(info.imageSmall)}" alt="${esc(info.name)}" loading="lazy" crossorigin="anonymous" onerror="this.style.display='none';this.parentNode.insertAdjacentHTML('beforeend','<div class=\\'tile-ph-name\\'>${esc(info.name)}</div>')">`
+      ? `<img src="${esc(proxyImg(info.imageSmall))}" alt="${esc(info.name)}" loading="lazy" onerror="this.style.display='none';this.parentNode.insertAdjacentHTML('beforeend','<div class=\\'tile-ph-name\\'>${esc(info.name)}</div>')">`
       : `<div class="tile-ph-name">${esc(info.name)}</div>`}
     ${inColl
       ? `<div class="in-coll">✓ In Collection</div>`
@@ -975,7 +981,7 @@ function renderPanel() {
   document.getElementById('panelBody').innerHTML = `
     <div class="pimg">
       ${(card.imageLarge || card.imageSmall)
-        ? `<img src="${esc(card.imageLarge || card.imageSmall)}" alt="${esc(card.name)}" crossorigin="anonymous" onerror="this.style.display='none';this.parentNode.insertAdjacentHTML('beforeend','<div class=\\'pimg-ph-name\\'>${esc(card.name)}</div>')">`
+        ? `<img src="${esc(proxyImg(card.imageLarge || card.imageSmall))}" alt="${esc(card.name)}" onerror="this.style.display='none';this.parentNode.insertAdjacentHTML('beforeend','<div class=\\'pimg-ph-name\\'>${esc(card.name)}</div>')">`
         : `<div class="pimg-ph-name">${esc(card.name)}</div>`}
     </div>
 
