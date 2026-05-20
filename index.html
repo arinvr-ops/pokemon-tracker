@@ -390,6 +390,17 @@ header {
 }
 
 .hidden { display: none !important; }
+
+.credits-badge {
+  font-family: var(--mono); font-size: 11px; color: var(--text-3);
+  padding: 3px 8px; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--rs); white-space: nowrap; letter-spacing: -.01em;
+}
+.credits-badge.low { color: #ff4444; border-color: rgba(204,0,0,.35); }
+.psub-lbl {
+  font-size: 9px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-3); margin-top: 8px; margin-bottom: 4px;
+}
 </style>
 </head>
 <body>
@@ -401,7 +412,8 @@ header {
     <input class="search-input" id="searchInput" type="text" placeholder="Search Pokémon cards…" autocomplete="off">
     <button class="search-btn" id="searchBtn">Search</button>
   </div>
-  <div class="hdr-right">
+  <div class="hdr-right" style="display:flex;align-items:center;gap:8px">
+    <div class="credits-badge hidden" id="creditsBadge" title="Daily API calls remaining"></div>
     <button class="icon-btn" id="settingsBtn" title="Settings">⚙</button>
   </div>
 </header>
@@ -481,6 +493,7 @@ const API_BASE    = 'https://www.pokemonpricetracker.com/api/v2';
 const COLL_KEY    = 'pkm-collection-v1';
 const AKEY_STORE  = 'pkm-api-key';
 const STALE_MS    = 24 * 60 * 60 * 1000;
+const SRCH_CACHE_KEY = 'pkm-search-cache-v1';
 
 // ── STATE ─────────────────────────────────────────────────────────────
 let collection  = [];
@@ -531,10 +544,11 @@ async function apiSearch(q) {
 }
 
 async function apiFetchDetail(tcgId) {
-  const r = await fetch(`${API_BASE}/cards?tcgPlayerId=${encodeURIComponent(tcgId)}&includeEbay=true`, {
+  const r = await fetch(`/api/card?tcgPlayerId=${encodeURIComponent(tcgId)}`, {
     headers: { Authorization: `Bearer ${getKey()}` }
   });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  updateCredits(r.headers.get('X-RateLimit-Remaining'));
   return r.json();
 }
 
@@ -549,14 +563,16 @@ function toCards(data) {
 }
 
 function cardInfo(r) {
+  const fallback = r?.images?.small ?? r?.image?.small ?? r?.imageSmall ?? r?.image ?? '';
   return {
     tcgPlayerId: String(r?.tcgPlayerId ?? r?.id ?? r?._id ?? ''),
     name:        r?.name       ?? 'Unknown',
     setName:     r?.set?.name  ?? r?.setName  ?? '',
     cardNumber:  r?.number     ?? r?.cardNumber ?? '',
     rarity:      r?.rarity     ?? '',
-    imageSmall:  r?.imageColor400 ?? r?.images?.small ?? r?.image?.small ?? r?.imageSmall ?? r?.image ?? '',
-    imageLarge:  r?.imageColor1   ?? r?.images?.large ?? r?.image?.large ?? r?.imageLarge ?? r?.image ?? '',
+    imageThumb:  r?.imageCdnUrl200 ?? fallback,
+    imageSmall:  r?.imageCdnUrl400 ?? r?.imageCdnUrl200 ?? fallback,
+    imageLarge:  r?.imageCdnUrl800 ?? r?.imageCdnUrl400 ?? r?.images?.large ?? r?.image?.large ?? r?.imageLarge ?? r?.image ?? '',
   };
 }
 
@@ -564,10 +580,12 @@ function priceInfo(r) {
   const p = r?.prices ?? r?.tcgplayer?.prices ?? r?.market_prices ?? null;
   if (!p) return null;
   if (p.market != null || p.low != null)
-    return { market: p.market, low: p.low, mid: p.mid, high: p.high };
+    return { market: p.market, low: p.low, mid: p.mid, high: p.high,
+             listings: p.listings ?? null, conditions: p.conditions ?? null, variants: p.variants ?? null };
   for (const v of ['normal', 'holofoil', 'reverseHolofoil', '1stEditionHolofoil', 'unlimited']) {
     if (p[v]?.market != null || p[v]?.low != null)
-      return { market: p[v].market, low: p[v].low, mid: p[v].mid, high: p[v].high };
+      return { market: p[v].market, low: p[v].low, mid: p[v].mid, high: p[v].high,
+               listings: null, conditions: null, variants: null };
   }
   return null;
 }
@@ -579,6 +597,60 @@ function ebayInfo(r) {
     psa9:  e?.psa9  ?? e?.['PSA 9']  ?? null,
     psa10: e?.psa10 ?? e?.['PSA 10'] ?? null,
   };
+}
+
+// ── CREDITS ───────────────────────────────────────────────────────────
+function updateCredits(val) {
+  const el = document.getElementById('creditsBadge');
+  if (!el || val == null) return;
+  const n = Number(val);
+  el.textContent = n.toLocaleString() + ' credits';
+  el.classList.remove('hidden');
+  el.classList.toggle('low', n < 50);
+}
+
+// ── SEARCH CACHE ──────────────────────────────────────────────────────
+function getCachedSearch(q) {
+  try {
+    const cache = JSON.parse(localStorage.getItem(SRCH_CACHE_KEY) || '{}');
+    const entry = cache[q.toLowerCase()];
+    if (!entry || Date.now() - entry.ts > STALE_MS) return null;
+    return entry.results;
+  } catch { return null; }
+}
+
+function setCachedSearch(q, results) {
+  try {
+    const cache = JSON.parse(localStorage.getItem(SRCH_CACHE_KEY) || '{}');
+    cache[q.toLowerCase()] = { results, ts: Date.now() };
+    localStorage.setItem(SRCH_CACHE_KEY, JSON.stringify(cache));
+  } catch {}
+}
+
+// ── PRICE TABLE HELPERS ───────────────────────────────────────────────
+function fmtKey(k) {
+  return k
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^1st\b/, '1st ')
+    .replace(/Holofoil/g, 'Holo')
+    .replace(/Edition/g, 'Ed')
+    .replace(/Reverse\s*/g, 'Rev ')
+    .trim();
+}
+
+function condTableHtml(obj, title) {
+  if (!obj || typeof obj !== 'object') return '';
+  const entries = Object.entries(obj).filter(([, v]) => v != null && !isNaN(Number(v)));
+  if (!entries.length) return '';
+  const cols = Math.min(entries.length, 3);
+  return `<div class="psub-lbl">${esc(title)}</div>
+    <div class="pgrid" style="grid-template-columns:repeat(${cols},1fr)">
+      ${entries.map(([k, v]) => `
+        <div class="pcell">
+          <div class="pc-lbl">${esc(fmtKey(k))}</div>
+          <div class="pc-val">${fmt(v)}</div>
+        </div>`).join('')}
+    </div>`;
 }
 
 // ── COLLECTION OPS ────────────────────────────────────────────────────
@@ -707,8 +779,8 @@ function collTile(card) {
   return `
 <div class="tile${card.id === selectedId ? ' sel' : ''}" data-id="${esc(card.id)}">
   <div class="tile-img">
-    ${card.imageSmall
-      ? `<img src="${esc(card.imageSmall)}" alt="${esc(card.name)}" loading="lazy" crossorigin="anonymous" onerror="this.style.display='none';this.parentNode.insertAdjacentHTML('beforeend','<div class=\\'tile-ph-name\\'>${esc(card.name)}</div>')">`
+    ${(card.imageThumb || card.imageSmall)
+      ? `<img src="${esc(card.imageThumb || card.imageSmall)}" alt="${esc(card.name)}" loading="lazy" crossorigin="anonymous" onerror="this.style.display='none';this.parentNode.insertAdjacentHTML('beforeend','<div class=\\'tile-ph-name\\'>${esc(card.name)}</div>')">`
       : `<div class="tile-ph-name">${esc(card.name)}</div>`}
   </div>
   <div class="tile-info">
@@ -764,6 +836,14 @@ function showSrchErr(title, detail) {
 async function doSearch() {
   const q = document.getElementById('searchInput').value.trim();
   if (!q) return;
+  const cached = getCachedSearch(q);
+  if (cached) {
+    srchResults = cached;
+    document.getElementById('srchMeta').textContent =
+      cached.length + (cached.length !== 1 ? ' results' : ' result') + ' for "' + q + '" (cached)';
+    setTab('search');
+    return;
+  }
   fetching = true;
   setTab('search');
   const btn = document.getElementById('searchBtn');
@@ -771,7 +851,8 @@ async function doSearch() {
   let handled = false;
   try {
     const url = '/api/search?query=' + encodeURIComponent(q);
-    const res = await fetch(url);
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${getKey()}` } });
+    updateCredits(res.headers.get('X-RateLimit-Remaining'));
     const text = await res.text();
     console.log('[PKM search] status:', res.status, 'body:', text.slice(0, 400));
     if (!res.ok) {
@@ -794,6 +875,7 @@ async function doSearch() {
       handled = true; return;
     }
     srchResults = cards;
+    setCachedSearch(q, cards);
     document.getElementById('srchMeta').textContent =
       cards.length + (cards.length !== 1 ? ' results' : ' result') + ' for "' + q + '"';
   } catch (e) {
@@ -858,12 +940,13 @@ function renderPanel() {
   const ep   = card.ebayPrices;
 
   const pricesHtml = lp
-    ? `<div class="pgrid">
-        <div class="pcell"   ><div class="pc-lbl">Low</div>   <div class="pc-val">${fmt(lp.low)}</div></div>
-        <div class="pcell"   ><div class="pc-lbl">Mid</div>   <div class="pc-val">${fmt(lp.mid)}</div></div>
+    ? `<div class="pgrid" style="grid-template-columns:repeat(3,1fr)">
         <div class="pcell hi"><div class="pc-lbl">Market</div><div class="pc-val">${fmt(lp.market)}</div></div>
-        <div class="pcell"   ><div class="pc-lbl">High</div>  <div class="pc-val">${fmt(lp.high)}</div></div>
-      </div>`
+        <div class="pcell"   ><div class="pc-lbl">Low</div>   <div class="pc-val">${fmt(lp.low)}</div></div>
+        <div class="pcell"   ><div class="pc-lbl">Listings</div><div class="pc-val">${lp.listings != null ? lp.listings : '—'}</div></div>
+      </div>
+      ${condTableHtml(lp.conditions, 'By Condition')}
+      ${condTableHtml(lp.variants,   'By Variant')}`
     : `<div style="font-size:12px;color:var(--text-3)">No live price data available</div>`;
 
   const ebayHtml = (ep?.psa9 != null || ep?.psa10 != null)
@@ -1085,6 +1168,7 @@ async function doFetchPrice(id) {
       livePrices: prices ?? card.livePrices,
       ebayPrices: ebay   ?? card.ebayPrices,
       lastPriceFetch: Date.now(),
+      imageThumb: card.imageThumb || refreshedInfo.imageThumb,
       imageSmall: card.imageSmall || refreshedInfo.imageSmall,
       imageLarge: card.imageLarge || refreshedInfo.imageLarge,
     });
