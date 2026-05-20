@@ -555,8 +555,8 @@ function cardInfo(r) {
     setName:     r?.set?.name  ?? r?.setName  ?? '',
     cardNumber:  r?.number     ?? r?.cardNumber ?? '',
     rarity:      r?.rarity     ?? '',
-    imageSmall:  r?.images?.small ?? r?.image?.small ?? r?.imageSmall ?? r?.image ?? '',
-    imageLarge:  r?.images?.large ?? r?.image?.large ?? r?.imageLarge ?? r?.image ?? '',
+    imageSmall:  r?.imageColor400 ?? r?.images?.small ?? r?.image?.small ?? r?.imageSmall ?? r?.image ?? '',
+    imageLarge:  r?.imageColor1   ?? r?.images?.large ?? r?.image?.large ?? r?.imageLarge ?? r?.image ?? '',
   };
 }
 
@@ -1080,10 +1080,13 @@ async function doFetchPrice(id) {
     const raw    = cards[0] ?? data;
     const prices = priceInfo(raw);
     const ebay   = ebayInfo(raw);
+    const refreshedInfo = cardInfo(raw);
     patchCard(id, {
       livePrices: prices ?? card.livePrices,
       ebayPrices: ebay   ?? card.ebayPrices,
       lastPriceFetch: Date.now(),
+      imageSmall: card.imageSmall || refreshedInfo.imageSmall,
+      imageLarge: card.imageLarge || refreshedInfo.imageLarge,
     });
     if (id === selectedId) renderPanel();
     renderStats(); renderGrid();
