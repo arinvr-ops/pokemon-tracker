@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <style>
 :root {
@@ -596,9 +597,56 @@ header {
   .price-variants { grid-template-columns: 1fr; }
 }
 .hidden { display: none !important; }
+
+#app { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+#auth-section {
+  position: fixed; inset: 0; z-index: 9999;
+  background: #0b0d12;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px;
+}
+.auth-google-btn {
+  display: flex; align-items: center; gap: 10px;
+  padding: 13px 28px;
+  background: var(--amber); border: none; border-radius: var(--r);
+  font-family: var(--sans); font-size: 15px; font-weight: 600; color: #000;
+  cursor: pointer; transition: background var(--ease);
+}
+.auth-google-btn:hover { background: var(--amber-dim); }
+.user-chip { display: flex; align-items: center; gap: 7px; }
+.user-photo { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+.user-name  { font-size: 11px; color: #888; }
+.signout-btn {
+  background: none; border: none; color: var(--text-3); font-size: 11px;
+  cursor: pointer; padding: 0; text-decoration: underline;
+}
+.signout-btn:hover { color: var(--text-2); }
 </style>
 </head>
 <body>
+
+<!-- AUTH SCREEN -->
+<div id="auth-section">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:14px">
+    <img src="Poke_Ball.webp" alt="" style="width:72px;height:72px;object-fit:contain;animation:pokespin 3s linear infinite">
+    <img src="pokemon-logo.webp" alt="Pokémon" style="height:58px;object-fit:contain">
+  </div>
+  <div style="text-align:center">
+    <div style="font-family:var(--mono);font-size:20px;font-weight:500;color:var(--text);letter-spacing:-.02em">PKM Card Tracker</div>
+    <div style="font-size:13px;color:var(--text-3);margin-top:6px">Track your collection across all devices</div>
+  </div>
+  <button class="auth-google-btn" onclick="signIn()">
+    <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+    </svg>
+    Sign in with Google
+  </button>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
 
 <!-- HEADER -->
 <header>
@@ -615,6 +663,11 @@ header {
   </div>
   <div class="hdr-right">
     <div class="credits-badge hidden" id="creditsBadge" title="Daily API calls remaining"></div>
+    <div class="user-chip">
+      <img class="user-photo" id="userPhoto" src="" alt="" style="display:none">
+      <span class="user-name" id="userName"></span>
+      <button class="signout-btn" id="signOutBtn" onclick="signOut()" style="display:none">Sign out</button>
+    </div>
     <button class="icon-btn" id="settingsBtn" title="Settings">⚙</button>
   </div>
 </header>
@@ -695,16 +748,6 @@ header {
       <input type="text" id="apiKeyInp" placeholder="pokeprice_free_…">
     </div>
     <p style="font-size:11px;color:var(--text-3);line-height:1.6">Used for price lookups when opening a card detail. Leave blank to use the default key.</p>
-    <div class="mfield" style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
-      <label>Cross-Device Sync</label>
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
-        <span style="font-size:10px;color:var(--text-3);flex-shrink:0">Your sync ID:</span>
-        <span id="syncIdDisplay" style="font-family:var(--mono);font-size:11px;color:var(--text-2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-        <button class="mbtn-sec" id="copySyncId" style="height:26px;padding:0 10px;font-size:11px;flex-shrink:0">Copy</button>
-      </div>
-      <input type="text" id="syncIdInp" placeholder="Enter sync ID to switch devices" style="margin-bottom:6px">
-      <button class="mbtn-pri" id="applySyncId" style="width:100%;height:32px">Apply Sync ID</button>
-    </div>
     <div class="mbtns">
       <button class="mbtn-sec" id="settingsCancel">Cancel</button>
       <button class="mbtn-pri" id="settingsSave">Save</button>
@@ -713,6 +756,8 @@ header {
 </div>
 
 <div class="toasts" id="toasts"></div>
+
+</div><!-- /#app -->
 
 <script>
 // ── CONFIG
@@ -733,12 +778,18 @@ firebase.initializeApp({
   messagingSenderId: "33002856769",
   appId: "1:33002856769:web:70cd747e4c70a27f86c1c0"
 });
-const db = firebase.firestore();
+const db       = firebase.firestore();
+const auth     = firebase.auth();
+const provider = new firebase.auth.GoogleAuthProvider();
 
-let userId = localStorage.getItem('pkm-user-id');
-if (!userId) {
-  userId = 'user-' + Math.random().toString(36).substr(2,9);
-  localStorage.setItem('pkm-user-id', userId);
+let userId = null;
+
+async function signIn() {
+  try { await auth.signInWithPopup(provider); }
+  catch(err) { console.error('Sign in failed:', err); }
+}
+async function signOut() {
+  await auth.signOut();
 }
 
 // ── STATE
@@ -1935,8 +1986,6 @@ async function doFetchPrice(id) {
 // ── SETTINGS
 const openSettings  = () => {
   document.getElementById('apiKeyInp').value = localStorage.getItem(AKEY_STORE) || '';
-  document.getElementById('syncIdDisplay').textContent = userId;
-  document.getElementById('syncIdInp').value = '';
   document.getElementById('settingsMod').classList.add('open');
 };
 const closeSettings = () => document.getElementById('settingsMod').classList.remove('open');
@@ -1980,20 +2029,6 @@ document.getElementById('panelOv').addEventListener('click', closePanel);
 document.getElementById('settingsBtn').addEventListener('click', openSettings);
 document.getElementById('settingsCancel').addEventListener('click', closeSettings);
 document.getElementById('settingsSave').addEventListener('click', saveSettings);
-document.getElementById('copySyncId').addEventListener('click', () => {
-  navigator.clipboard.writeText(userId)
-    .then(() => toast('Sync ID copied', 'ok'))
-    .catch(() => toast('Copy failed', 'err'));
-});
-document.getElementById('applySyncId').addEventListener('click', () => {
-  const newId = document.getElementById('syncIdInp').value.trim();
-  if (!newId) return;
-  userId = newId;
-  localStorage.setItem('pkm-user-id', userId);
-  closeSettings();
-  toast('Sync ID applied — loading collection…', 'ok');
-  loadCollection();
-});
 document.getElementById('settingsMod').addEventListener('click', e => {
   if (e.target === document.getElementById('settingsMod')) closeSettings();
 });
@@ -2004,10 +2039,29 @@ document.addEventListener('keydown', e => {
   else if (document.getElementById('panel').classList.contains('open')) closePanel();
 });
 
-// ── INIT — load collection first, render immediately
-(async function init() {
-  await loadCollection();
-})();
+// ── INIT — gate entire app behind Firebase Auth
+auth.onAuthStateChanged(user => {
+  const authEl = document.getElementById('auth-section');
+  const appEl  = document.getElementById('app');
+  if (user) {
+    userId = user.uid;
+    // populate header user chip
+    const photo = document.getElementById('userPhoto');
+    const name  = document.getElementById('userName');
+    const btn   = document.getElementById('signOutBtn');
+    if (user.photoURL) { photo.src = user.photoURL; photo.style.display = ''; }
+    if (user.displayName) name.textContent = user.displayName.split(' ')[0];
+    btn.style.display = '';
+    authEl.style.display = 'none';
+    appEl.style.display  = '';
+    loadCollection();
+  } else {
+    userId = null;
+    collection = [];
+    authEl.style.display = '';
+    appEl.style.display  = 'none';
+  }
+});
 </script>
 </body>
 </html>
