@@ -756,6 +756,12 @@ let activeChartCond = 'Near Mint';
 // ── STORAGE
 const getKey = () => localStorage.getItem(AKEY_STORE) || DEFAULT_KEY;
 
+function cleanForFirestore(obj) {
+  return JSON.parse(JSON.stringify(obj, (key, value) =>
+    value === undefined ? null : value
+  ));
+}
+
 async function loadCollection() {
   try {
     const snapshot = await db.collection('collections')
@@ -884,6 +890,8 @@ async function fetchPrice(tcgId) {
   } catch(err) {
     if (err.name === 'AbortError') {
       showPriceError('Price fetch timed out');
+    } else if (err.message.includes('429')) {
+      showPriceError('Daily API limit reached. Try again after 5pm or enter price manually.');
     } else {
       showPriceError('Failed to load price: ' + err.message);
     }
@@ -1089,7 +1097,7 @@ async function addToCollection(card) {
       : new Date().toISOString()
   };
   try {
-    const ref = await db.collection('collections').doc(userId).collection('cards').add(row);
+    const ref = await db.collection('collections').doc(userId).collection('cards').add(cleanForFirestore(row));
     collection.unshift({ id: ref.id, ...row });
     renderGrid(); renderStats(); rebuildSetDD();
     return ref.id;
@@ -1103,7 +1111,7 @@ async function updateCard(cardId, updates) {
   const idx = collection.findIndex(c => c.id === cardId);
   if (idx > -1) Object.assign(collection[idx], updates);
   try {
-    await db.collection('collections').doc(userId).collection('cards').doc(cardId).update(updates);
+    await db.collection('collections').doc(userId).collection('cards').doc(cardId).update(cleanForFirestore(updates));
   } catch(err) {
     console.error('Update failed:', err);
   }
