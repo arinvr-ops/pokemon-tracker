@@ -1013,6 +1013,16 @@ function imgFallback(imgEl) {
     .catch(() => { imgEl.style.display = 'none'; });
 }
 
+function imgSrchFallback(imgEl) {
+  const small = imgEl.dataset.small;
+  if (small && imgEl.src !== small) {
+    imgEl.onerror = () => imgFallback(imgEl);
+    imgEl.src = small;
+  } else {
+    imgFallback(imgEl);
+  }
+}
+
 // ── CREDITS
 function updateCredits(val) {
   const el = document.getElementById('creditsBadge');
@@ -1341,13 +1351,15 @@ function collTile(card) {
 function srchTile(raw) {
   const info   = cardInfo(raw);
   const inColl = collection.some(c => c.tcgPlayerId === info.tcgPlayerId);
-  const imgSrc = info.imageThumb || info.imageSmall || '';
+  const imgLarge = info.imageLarge || '';
+  const imgSmall = info.imageSmall || '';
+  const imgSrc   = imgLarge || imgSmall;
   const prices = priceInfo(raw);
   const year   = releaseYear(info);
   return `<div class="tile" data-tcgid="${esc(info.tcgPlayerId)}">
   <div class="tile-img">
     ${imgSrc
-      ? `<img src="${esc(imgSrc)}" alt="${esc(info.name)}" loading="lazy" onerror="imgFallback(this)" data-name="${esc(info.name)}">`
+      ? `<img src="${esc(imgLarge || imgSmall)}" data-small="${esc(imgSmall)}" alt="${esc(info.name)}" loading="lazy" onerror="imgSrchFallback(this)" data-name="${esc(info.name)}">`
       : `<div class="tile-ph-name">${esc(info.name)}</div>`}
     ${inColl ? `<div class="in-coll">✓ In Collection</div>` : ''}
   </div>
