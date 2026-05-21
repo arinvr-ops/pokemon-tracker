@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PKM Tracker</title>
+<link rel="icon" href="pokeball.webp" type="image/webp">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -456,8 +457,8 @@ header {
     </div>
   </div>
   <div class="search-wrap">
-    <input class="search-input" id="searchInput" type="text" placeholder="Search Pokémon cards…" autocomplete="off">
-    <button class="search-btn" id="searchBtn">Search</button>
+    <input class="search-input" id="search-input" type="text" placeholder="Search Pokémon cards…" autocomplete="off" onkeydown="if(event.key==='Enter')doSearch()">
+    <button class="search-btn" id="searchBtn" onclick="doSearch()">Search</button>
   </div>
   <div class="hdr-right">
     <div class="credits-badge hidden" id="creditsBadge" title="Daily API calls remaining"></div>
@@ -476,12 +477,12 @@ header {
 <!-- TOOLBAR -->
 <div class="toolbar">
   <div class="tabs">
-    <button class="tab active" id="tabCol">Collection</button>
-    <button class="tab"        id="tabSrch">Search Results</button>
+    <button class="tab active" id="tab-collection" onclick="switchTab('collection')">Collection</button>
+    <button class="tab"        id="tab-search"     onclick="switchTab('search')">Search Results</button>
   </div>
   <div class="view-btns" id="viewBtns">
-    <button class="view-btn active" id="viewGrid" title="Grid view">⊞</button>
-    <button class="view-btn"        id="viewList" title="List view">≡</button>
+    <button class="view-btn active" id="viewGrid" title="Grid view" onclick="switchView('grid')">⊞</button>
+    <button class="view-btn"        id="viewList" title="List view" onclick="switchView('list')">≡</button>
   </div>
   <div class="filters" id="colFilters">
     <select class="fsel" id="fSet"><option value="">All Sets</option></select>
@@ -507,7 +508,14 @@ header {
 <!-- MAIN -->
 <div class="main">
   <div class="grid-area">
-    <div id="cardGrid"></div>
+    <div id="view-collection" style="display:block">
+      <div id="collection-grid" class="grid"></div>
+      <div id="collection-list" style="display:none"></div>
+    </div>
+    <div id="view-search" style="display:none">
+      <div id="search-status" style="padding:16px 20px;color:var(--text-3);font-size:13px"></div>
+      <div id="search-results" class="grid"></div>
+    </div>
   </div>
 </div>
 
@@ -592,7 +600,7 @@ const timeAgo = ts => {
   if (s < 86400) return Math.floor(s/3600) + 'h ago';
   return Math.floor(s/86400) + 'd ago';
 };
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+const esc = s => String(s ||'').replace(/[&<>"']/g, c =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 // ── API
@@ -616,28 +624,28 @@ function toCards(data) {
 }
 
 function cardInfo(r) {
-  let tcgId = r?.tcgplayer?.id ?? r?.tcgPlayerId ?? '';
+  let tcgId = r?.tcgplayer?.id ||r?.tcgPlayerId ||'';
   if (!tcgId && r?.tcgplayer?.url) {
     const m = String(r.tcgplayer.url).match(/\/(\d+)/);
     if (m) tcgId = m[1];
   }
-  if (!tcgId) tcgId = r?.id ?? r?._id ?? '';
-  const sm = r?.images?.small ?? r?.image?.small ?? '';
-  const lg = r?.images?.large ?? r?.image?.large ?? '';
+  if (!tcgId) tcgId = r?.id ||r?._id ||'';
+  const sm = r?.images?.small ||r?.image?.small ||'';
+  const lg = r?.images?.large ||r?.image?.large ||'';
   return {
     tcgPlayerId: String(tcgId),
-    name:        r?.name       ?? 'Unknown',
-    setName:     r?.set?.name  ?? r?.setName   ?? '',
-    cardNumber:  r?.number     ?? r?.cardNumber ?? '',
-    rarity:      r?.rarity     ?? '',
-    imageThumb:  sm || r?.imageCdnUrl200 ?? r?.imageSmall ?? r?.image ?? '',
-    imageSmall:  sm || r?.imageCdnUrl400 ?? r?.imageCdnUrl200 ?? r?.imageSmall ?? '',
-    imageLarge:  lg || r?.imageCdnUrl800 ?? r?.imageCdnUrl400 ?? r?.imageLarge ?? '',
+    name:        r?.name       ||'Unknown',
+    setName:     r?.set?.name  ||r?.setName   ||'',
+    cardNumber:  r?.number     ||r?.cardNumber ||'',
+    rarity:      r?.rarity     ||'',
+    imageThumb:  sm || r?.imageCdnUrl200 ||r?.imageSmall ||r?.image ||'',
+    imageSmall:  sm || r?.imageCdnUrl400 ||r?.imageCdnUrl200 ||r?.imageSmall ||'',
+    imageLarge:  lg || r?.imageCdnUrl800 ||r?.imageCdnUrl400 ||r?.imageLarge ||'',
   };
 }
 
 function priceInfo(r) {
-  const p = r?.prices ?? r?.tcgplayer?.prices ?? r?.market_prices ?? null;
+  const p = r?.prices ||r?.tcgplayer?.prices ||r?.market_prices ||null;
   if (!p) return null;
   if (p.market != null || p.low != null)
     return { market: p.market, low: p.low, mid: p.mid, high: p.high };
@@ -649,26 +657,26 @@ function priceInfo(r) {
 }
 
 function psaInfo(r) {
-  const e = r?.ebay ?? r?.ebayPrices ?? r?.psa ?? null;
+  const e = r?.ebay ||r?.ebayPrices ||r?.psa ||null;
   if (!e) return null;
   return {
-    psa10: { price: e?.psa10 ?? e?.['PSA 10'] ?? null, count: e?.psa10Count ?? e?.psa10Sales ?? null },
-    psa9:  { price: e?.psa9  ?? e?.['PSA 9']  ?? null, count: e?.psa9Count  ?? e?.psa9Sales  ?? null },
-    psa8:  { price: e?.psa8  ?? e?.['PSA 8']  ?? null, count: e?.psa8Count  ?? e?.psa8Sales  ?? null },
+    psa10: { price: e?.psa10 ||e?.['PSA 10'] ||null, count: e?.psa10Count ||e?.psa10Sales ||null },
+    psa9:  { price: e?.psa9  ||e?.['PSA 9']  ||null, count: e?.psa9Count  ||e?.psa9Sales  ||null },
+    psa8:  { price: e?.psa8  ||e?.['PSA 8']  ||null, count: e?.psa8Count  ||e?.psa8Sales  ||null },
   };
 }
 
 function populationInfo(r) {
-  const pop = r?.population ?? r?.pop ?? r?.psaPopulation ?? null;
+  const pop = r?.population ||r?.pop ||r?.psaPopulation ||null;
   if (!pop) return null;
   return {
-    total:   pop?.total   ?? pop?.totalGraded ?? null,
-    gemRate: pop?.gemRate ?? pop?.gem_rate    ?? pop?.psa10Rate ?? null,
+    total:   pop?.total   ||pop?.totalGraded ||null,
+    gemRate: pop?.gemRate ||pop?.gem_rate    ||pop?.psa10Rate ||null,
   };
 }
 
 function priceHistoryInfo(r) {
-  return r?.priceHistory ?? r?.price_history ?? r?.history ?? r?.historicalPrices ?? null;
+  return r?.priceHistory ||r?.price_history ||r?.history ||r?.historicalPrices ||null;
 }
 
 // ── IMAGE FALLBACK
@@ -790,7 +798,7 @@ function getFiltered() {
   cards.sort((a, b) => {
     let va, vb;
     if (field === 'name')       { va = (a.name||'').toLowerCase(); vb = (b.name||'').toLowerCase(); }
-    else if (field === 'price') { va = getPrice(a) ?? -Infinity;   vb = getPrice(b) ?? -Infinity; }
+    else if (field === 'price') { va = getPrice(a) ||-Infinity;   vb = getPrice(b) ||-Infinity; }
     else                        { va = a.addedAt || 0;             vb = b.addedAt || 0; }
     if (va < vb) return asc ? -1 : 1;
     if (va > vb) return asc ?  1 : -1;
@@ -808,40 +816,18 @@ function emptyState(title, sub) {
 }
 
 function renderGrid() {
-  const grid = document.getElementById('cardGrid');
-
-  if (activeTab === 'collection') {
-    document.getElementById('viewBtns').classList.remove('hidden');
-    const cards = getFiltered();
-    if (!cards.length) {
-      grid.className = '';
-      grid.innerHTML = collection.length
-        ? emptyState('No cards match these filters', 'Try adjusting the filters above')
-        : emptyState('Search for cards above to start your collection', 'Your collection is empty');
-      return;
-    }
-    if (viewMode === 'list') {
-      grid.className = '';
-      grid.innerHTML = renderListView(cards);
-    } else {
-      grid.className = 'grid';
-      grid.innerHTML = cards.map(collTile).join('');
-    }
-  } else {
-    document.getElementById('viewBtns').classList.add('hidden');
-    if (fetching) {
-      grid.className = 'grid';
-      grid.innerHTML = `<div style="grid-column:1/-1;padding:64px 20px;text-align:center;color:var(--text-3)"><div class="spinner"></div><p>Searching…</p></div>`;
-      return;
-    }
-    if (!srchResults.length) {
-      grid.className = '';
-      grid.innerHTML = emptyState('Type a card name above and hit Search', 'Results appear here');
-      return;
-    }
-    grid.className = 'grid';
-    grid.innerHTML = srchResults.map(srchTile).join('');
+  const gridEl = document.getElementById('collection-grid');
+  const listEl = document.getElementById('collection-list');
+  const cards = getFiltered();
+  if (!cards.length) {
+    gridEl.innerHTML = collection.length
+      ? emptyState('No cards match these filters', 'Try adjusting the filters above')
+      : emptyState('Search for cards above to start your collection', 'Your collection is empty');
+    listEl.innerHTML = '';
+    return;
   }
+  gridEl.innerHTML = cards.map(collTile).join('');
+  listEl.innerHTML = renderListView(cards);
 }
 
 function renderListView(cards) {
@@ -926,79 +912,78 @@ function srchTile(raw) {
 }
 
 // ── SEARCH
+function showSearchStatus(msg) {
+  document.getElementById('search-status').textContent = msg;
+}
+
+function renderSearchResults(cards) {
+  srchResults = cards;
+  const container = document.getElementById('search-results');
+  container.innerHTML = cards.map(srchTile).join('');
+  showSearchStatus(cards.length + (cards.length !== 1 ? ' results' : ' result'));
+}
+
 async function doSearch() {
-  const q = document.getElementById('searchInput').value.trim();
-  if (!q) return;
-
-  const cached = getCachedSearch(q);
-  if (cached) {
-    srchResults = cached;
-    const meta = document.getElementById('srchMeta');
-    meta.textContent = cached.length + (cached.length !== 1 ? ' results' : ' result') + ' for "' + q + '" (cached)';
-    meta.classList.remove('hidden');
-    setTab('search');
-    return;
-  }
-
-  fetching = true;
-  setTab('search');
-  const btn = document.getElementById('searchBtn');
-  btn.disabled = true;
-  let handled = false;
-
+  const query = document.getElementById('search-input').value.trim();
+  if (!query) return;
+  showSearchStatus('Searching...');
   try {
-    const res  = await fetch(TCG_BASE + '?q=name:' + encodeURIComponent(q) + '&pageSize=8');
-    const text = await res.text();
-    if (!res.ok) {
-      srchResults = [];
-      document.getElementById('cardGrid').innerHTML = emptyState('Search error ' + res.status, text.slice(0,200));
-      handled = true; return;
+    const res = await fetch(
+      'https://api.pokemontcg.io/v2/cards?q=name:' +
+      encodeURIComponent(query) + '&pageSize=8'
+    );
+    const data = await res.json();
+    console.log('Search result:', data);
+    if (data.data && data.data.length > 0) {
+      renderSearchResults(data.data);
+      switchTab('search');
+    } else {
+      showSearchStatus('No results for: ' + query);
+      switchTab('search');
     }
-    let data;
-    try { data = JSON.parse(text); }
-    catch {
-      srchResults = [];
-      document.getElementById('cardGrid').innerHTML = emptyState('Bad response from API', '');
-      handled = true; return;
-    }
-    const cards = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-    if (!cards.length) {
-      srchResults = [];
-      document.getElementById('cardGrid').className = '';
-      document.getElementById('cardGrid').innerHTML = emptyState('No cards found for: ' + q, 'Try a different search term');
-      handled = true; return;
-    }
-    srchResults = cards;
-    setCachedSearch(q, cards);
-    const meta = document.getElementById('srchMeta');
-    meta.textContent = cards.length + (cards.length !== 1 ? ' results' : ' result') + ' for "' + q + '"';
-    meta.classList.remove('hidden');
-  } catch (e) {
-    srchResults = [];
-    document.getElementById('cardGrid').innerHTML = emptyState('Search failed: ' + e.message, '');
-    handled = true;
-  } finally {
-    fetching = false;
-    btn.disabled = false;
-    if (!handled) renderGrid();
+  } catch(err) {
+    console.error('Search error:', err);
+    showSearchStatus('Search failed: ' + err.message);
   }
 }
 
 function handleSrchClick(tcgId) {
   const existing = collection.find(c => c.tcgPlayerId === tcgId);
-  if (existing) { setTab('collection'); openPanel(existing.id); return; }
+  if (existing) { switchTab('collection'); openPanel(existing.id); return; }
   const raw = srchResults.find(r => cardInfo(r).tcgPlayerId === tcgId);
   if (!raw) return;
   openPanelPreview(raw);
 }
 
-// ── TABS
-function setTab(tab) {
+// ── TABS / VIEWS
+function switchTab(tab) {
   activeTab = tab;
-  document.getElementById('tabCol').classList.toggle('active', tab === 'collection');
-  document.getElementById('tabSrch').classList.toggle('active', tab === 'search');
+  document.getElementById('view-collection')
+    .style.display = tab === 'collection' ? 'block' : 'none';
+  document.getElementById('view-search')
+    .style.display = tab === 'search' ? 'block' : 'none';
+  document.getElementById('tab-collection')
+    .classList.toggle('active', tab === 'collection');
+  document.getElementById('tab-search')
+    .classList.toggle('active', tab === 'search');
   document.getElementById('colFilters').classList.toggle('hidden', tab === 'search');
   document.getElementById('srchMeta').classList.toggle('hidden', tab === 'collection');
+  if (tab === 'collection') renderGrid();
+}
+
+function switchView(view) {
+  viewMode = view;
+  const grid = document.getElementById('collection-grid');
+  const list = document.getElementById('collection-list');
+  if (view === 'grid') {
+    grid.style.display = 'grid';
+    list.style.display = 'none';
+  } else {
+    grid.style.display = 'none';
+    list.style.display = 'block';
+  }
+  document.getElementById('viewGrid').classList.toggle('active', view === 'grid');
+  document.getElementById('viewList').classList.toggle('active', view === 'list');
   renderGrid();
 }
 
@@ -1080,7 +1065,7 @@ function openPanelPreview(raw) {
   // Fetch prices (1 credit)
   if (info.tcgPlayerId) {
     apiFetchDetail(info.tcgPlayerId).then(data => {
-      const r      = toCards(data)[0] ?? data;
+      const r      = toCards(data)[0] ||data;
       const prices = priceInfo(r);
       const psa    = psaInfo(r);
       const pop    = populationInfo(r);
@@ -1149,9 +1134,9 @@ function renderPanel() {
   const cost = card.costBasis != null ? Number(card.costBasis) : null;
   const qty  = Number(card.quantity) || 1;
   const lp   = card.livePrices;
-  const psa  = card.psaPrices ?? null;
-  const pop  = card.population ?? null;
-  const hist = card.priceHistory ?? null;
+  const psa  = card.psaPrices ||null;
+  const pop  = card.population ||null;
+  const hist = card.priceHistory ||null;
 
   document.getElementById('panelTtl').textContent = card.name;
   document.getElementById('panelSub').textContent =
@@ -1333,12 +1318,12 @@ function renderChart(historyData, condition) {
   canvas.style.display = '';
 
   const filtered = condition
-    ? historyData.filter(d => { const c = d.condition ?? d.grade ?? ''; return c === condition || !c; })
+    ? historyData.filter(d => { const c = d.condition ||d.grade ||''; return c === condition || !c; })
     : historyData;
 
   const pts = (filtered.length ? filtered : historyData).map(d => ({
-    x: d.date ?? d.ts ?? d.timestamp ?? d.updatedAt ?? '',
-    y: d.price ?? d.market ?? d.marketPrice ?? d.value ?? null,
+    x: d.date ||d.ts ||d.timestamp ||d.updatedAt ||'',
+    y: d.price ||d.market ||d.marketPrice ||d.value ||null,
   })).filter(d => d.y != null);
 
   if (!pts.length) { canvas.style.display = 'none'; return; }
@@ -1429,13 +1414,13 @@ async function doFetchPrice(id) {
   if (!card?.tcgPlayerId) return;
   try {
     const data  = await apiFetchDetail(card.tcgPlayerId);
-    const raw   = toCards(data)[0] ?? data;
+    const raw   = toCards(data)[0] ||data;
     const info  = cardInfo(raw);
     patchCard(id, {
-      livePrices:     priceInfo(raw)         ?? card.livePrices,
-      psaPrices:      psaInfo(raw)           ?? card.psaPrices,
-      population:     populationInfo(raw)    ?? card.population,
-      priceHistory:   priceHistoryInfo(raw)  ?? card.priceHistory,
+      livePrices:     priceInfo(raw)         ||card.livePrices,
+      psaPrices:      psaInfo(raw)           ||card.psaPrices,
+      population:     populationInfo(raw)    ||card.population,
+      priceHistory:   priceHistoryInfo(raw)  ||card.priceHistory,
       lastPriceFetch: Date.now(),
       imageThumb: card.imageThumb || info.imageThumb,
       imageSmall: card.imageSmall || info.imageSmall,
@@ -1470,34 +1455,16 @@ function toast(msg, type = '') {
 }
 
 // ── EVENTS
-document.getElementById('searchBtn').addEventListener('click', doSearch);
-document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
-
-document.getElementById('cardGrid').addEventListener('click', e => {
+document.getElementById('view-collection').addEventListener('click', e => {
   const tile = e.target.closest('.tile');
-  if (tile) {
-    if (activeTab === 'search') { const id = tile.dataset.tcgid; if (id) handleSrchClick(id); }
-    else                        { const id = tile.dataset.id;    if (id) openPanel(id); }
-    return;
-  }
+  if (tile) { const id = tile.dataset.id; if (id) openPanel(id); return; }
   const row = e.target.closest('tr[data-id]');
   if (row) openPanel(row.dataset.id);
 });
 
-document.getElementById('tabCol').addEventListener('click',  () => setTab('collection'));
-document.getElementById('tabSrch').addEventListener('click', () => setTab('search'));
-
-document.getElementById('viewGrid').addEventListener('click', () => {
-  viewMode = 'grid';
-  document.getElementById('viewGrid').classList.add('active');
-  document.getElementById('viewList').classList.remove('active');
-  renderGrid();
-});
-document.getElementById('viewList').addEventListener('click', () => {
-  viewMode = 'list';
-  document.getElementById('viewList').classList.add('active');
-  document.getElementById('viewGrid').classList.remove('active');
-  renderGrid();
+document.getElementById('search-results').addEventListener('click', e => {
+  const tile = e.target.closest('.tile');
+  if (tile) { const id = tile.dataset.tcgid; if (id) handleSrchClick(id); }
 });
 
 document.getElementById('fSet').addEventListener('change',  renderGrid);
