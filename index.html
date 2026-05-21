@@ -606,12 +606,85 @@ const esc = s => String(s ||'').replace(/[&<>"']/g, c =>
 // ── API
 async function apiFetchDetail(tcgId) {
   if (!tcgId) throw new Error('No TCGPlayer ID for this card');
-  const r = await fetch(`/api/search?tcgPlayerId=${encodeURIComponent(tcgId)}`, {
-    headers: { Authorization: `Bearer ${getKey()}` }
-  });
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  updateCredits(r.headers.get('X-RateLimit-Remaining'));
-  return r.json();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const r = await fetch(`/api/search?tcgPlayerId=${encodeURIComponent(tcgId)}`, {
+      headers: { Authorization: `Bearer ${getKey()}` },
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    updateCredits(r.headers.get('X-RateLimit-Remaining'));
+    return r.json();
+  } catch (err) {
+    clearTimeout(timeout);
+    throw err;
+  }
+}
+
+function showPriceError(msg) {
+  const el = document.getElementById('pvPrice');
+  if (el) el.textContent = '—';
+  const m = document.getElementById('pvMeta');
+  if (m) m.textContent = msg;
+}
+
+function renderPrices(dataArr) {
+  const r = Array.isArray(dataArr) ? dataArr[0] : dataArr;
+  if (!r) { showPriceError('No price data available'); return; }
+  const prices = priceInfo(r);
+  const psa    = psaInfo(r);
+  const pop    = populationInfo(r);
+  const priceEl = document.getElementById('pvPrice');
+  const metaEl  = document.getElementById('pvMeta');
+  if (priceEl) priceEl.textContent = prices && prices.market != null ? fmt(prices.market) : '—';
+  if (metaEl)  metaEl.textContent  = 'updated just now';
+  const psaEl = document.getElementById('pvPsa');
+  if (psaEl && psa) {
+    psaEl.innerHTML = [['psa10','PSA 10'],['psa9','PSA 9'],['psa8','PSA 8']].map(([k,l],i) => `
+      <div class="psa-box${i===0?' hi':''}">
+        <div class="psa-grade">${l}</div>
+        <div class="psa-price">${psa[k] && psa[k].price != null ? fmt(psa[k].price) : '—'}</div>
+        <div class="psa-sales">${psa[k] && psa[k].count != null ? psa[k].count + ' sales' : 'no data'}</div>
+      </div>`).join('');
+  }
+  const popEl = document.getElementById('pvPop');
+  if (popEl && pop) {
+    const gr = pop.gemRate != null
+      ? (Number(pop.gemRate) <= 1 ? (Number(pop.gemRate)*100).toFixed(1) : Number(pop.gemRate).toFixed(1)) + '%'
+      : '—';
+    popEl.innerHTML = `
+      <div class="pop-cell"><div class="pop-lbl">Total Graded</div><div class="pop-val">${pop.total != null ? Number(pop.total).toLocaleString() : '—'}</div></div>
+      <div class="pop-cell"><div class="pop-lbl">Gem Rate</div><div class="pop-val">${gr}</div></div>`;
+  }
+}
+
+async function fetchPrice(tcgId) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const res = await fetch('/api/search?tcgPlayerId=' + tcgId,
+      { signal: controller.signal });
+    clearTimeout(timeout);
+    const data = await res.json();
+    console.log('Price response:', data);
+    if (data.data) {
+      renderPrices(data.data);
+    } else if (data.error) {
+      showPriceError(data.error);
+    } else {
+      showPriceError('No price data available');
+    }
+  } catch(err) {
+    clearTimeout(timeout);
+    if (err.name === 'AbortError') {
+      showPriceError('Price fetch timed out');
+    } else {
+      showPriceError('Failed to load price: ' + err.message);
+    }
+    console.error('Price fetch error:', err);
+  }
 }
 
 // ── EXTRACTORS
@@ -942,7 +1015,7 @@ async function doSearch() {
       renderSearchResults(data.data);
       switchTab('search');
     } else {
-      showSearchStatus('No results for: ' + query);
+      showSearchStatus('No cards found for "' + query + '". Note: booster packs and sealed products are not in this database. Try searching for individual card names like Charizard or Pikachu.');
       switchTab('search');
     }
   } catch(err) {
@@ -1066,45 +1139,7 @@ function openPanelPreview(raw) {
     renderGrid();
   });
 
-  // Fetch prices (1 credit)
-  if (info.tcgPlayerId) {
-    apiFetchDetail(info.tcgPlayerId).then(data => {
-      const r      = toCards(data)[0] ||data;
-      const prices = priceInfo(r);
-      const psa    = psaInfo(r);
-      const pop    = populationInfo(r);
-
-      const priceEl = document.getElementById('pvPrice');
-      const metaEl  = document.getElementById('pvMeta');
-      if (priceEl) priceEl.textContent = prices?.market != null ? fmt(prices.market) : '—';
-      if (metaEl)  metaEl.textContent  = 'updated just now';
-
-      const psaEl = document.getElementById('pvPsa');
-      if (psaEl && psa) {
-        psaEl.innerHTML = [['psa10','PSA 10'],['psa9','PSA 9'],['psa8','PSA 8']].map(([k,l],i) => `
-          <div class="psa-box${i===0?' hi':''}">
-            <div class="psa-grade">${l}</div>
-            <div class="psa-price">${psa[k]?.price != null ? fmt(psa[k].price) : '—'}</div>
-            <div class="psa-sales">${psa[k]?.count != null ? psa[k].count + ' sales' : 'no data'}</div>
-          </div>`).join('');
-      }
-
-      const popEl = document.getElementById('pvPop');
-      if (popEl && pop) {
-        const gr = pop.gemRate != null
-          ? (Number(pop.gemRate) <= 1 ? (Number(pop.gemRate)*100).toFixed(1) : Number(pop.gemRate).toFixed(1)) + '%'
-          : '—';
-        popEl.innerHTML = `
-          <div class="pop-cell"><div class="pop-lbl">Total Graded</div><div class="pop-val">${pop.total != null ? Number(pop.total).toLocaleString() : '—'}</div></div>
-          <div class="pop-cell"><div class="pop-lbl">Gem Rate</div><div class="pop-val">${gr}</div></div>`;
-      }
-    }).catch(() => {
-      const el = document.getElementById('pvPrice');
-      if (el) el.textContent = '—';
-      const m = document.getElementById('pvMeta');
-      if (m) m.textContent = 'fetch failed';
-    });
-  }
+  if (info.tcgPlayerId) fetchPrice(info.tcgPlayerId);
 }
 
 // ── PANEL: COLLECTION MODE
