@@ -602,8 +602,8 @@ header {
 #auth-section {
   position: fixed; inset: 0; z-index: 9999;
   background: #000;
-  display: flex; align-items: flex-end; justify-content: center;
-  min-height: 100dvh; margin: 0; padding: 72px 18px 0;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100dvh; margin: 0; padding: 0 18px;
 }
 .auth-panel {
   width: min(446px, calc(100vw - 28px));
@@ -632,6 +632,7 @@ header {
 .auth-pokeball {
   width: 104px; height: 104px; object-fit: contain;
   filter: drop-shadow(0 8px 14px rgba(0,0,0,.42));
+  animation: pokespin 3s linear infinite;
 }
 .auth-logo-crop {
   width: min(330px, 78vw);
