@@ -78,7 +78,7 @@ header {
 .search-input:focus { border-color: var(--amber); }
 .search-btn {
   height: 34px; padding: 0 16px;
-  background: var(--amber); color: #111; border: none; border-radius: var(--rs);
+  background: var(--amber); color: #000; border: none; border-radius: var(--rs);
   font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer;
   transition: background var(--ease);
 }
@@ -127,7 +127,7 @@ header {
   color: var(--text-2); font-family: var(--sans); font-size: 12px; font-weight: 500; cursor: pointer;
   transition: all var(--ease); white-space: nowrap;
 }
-.tab.active { background: var(--surface-3); color: var(--amber); }
+.tab.active { background: var(--surface-3); color: var(--amber); border-bottom: 2px solid var(--amber); }
 .view-btns { display: flex; gap: 2px; background: var(--surface-2); border-radius: var(--rs); padding: 2px; }
 .view-btn {
   width: 28px; height: 26px;
@@ -193,10 +193,10 @@ header {
 .tile-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
 .tile-price { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--amber); }
 
-/* Badges — Raw=blue, Graded=amber */
+/* Badges — Raw=Pokémon blue, Graded=red */
 .badge { font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 20px; letter-spacing: .04em; text-transform: uppercase; }
-.badge.raw    { background: var(--blue-bg);  color: var(--blue);  border: 1px solid rgba(59,130,246,.3); }
-.badge.graded { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(255,203,5,.3); }
+.badge.raw    { background: rgba(59,76,202,.18); color: #3B4CCA; border: 1px solid rgba(59,76,202,.35); }
+.badge.graded { background: rgba(204,0,0,.12);   color: #CC0000; border: 1px solid rgba(204,0,0,.35); }
 .badge.manual { background: rgba(76,175,80,.1); color: var(--green); border: 1px solid rgba(76,175,80,.3); }
 
 /* ── LIST VIEW */
@@ -379,7 +379,7 @@ header {
 .action-btn {
   width: 100%; height: 40px;
   background: var(--amber); border: none; border-radius: var(--rs);
-  color: #111; font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer;
+  color: #000; font-family: var(--sans); font-size: 13px; font-weight: 600; cursor: pointer;
   transition: background var(--ease);
 }
 .action-btn:hover { background: var(--amber-dim); }
@@ -605,7 +605,8 @@ const esc = s => String(s ||'').replace(/[&<>"']/g, c =>
 
 // ── API
 async function apiFetchDetail(tcgId) {
-  const r = await fetch(`/api/card?tcgPlayerId=${encodeURIComponent(tcgId)}`, {
+  if (!tcgId) throw new Error('No TCGPlayer ID for this card');
+  const r = await fetch(`/api/search?tcgPlayerId=${encodeURIComponent(tcgId)}`, {
     headers: { Authorization: `Bearer ${getKey()}` }
   });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -928,9 +929,12 @@ async function doSearch() {
   if (!query) return;
   showSearchStatus('Searching...');
   try {
+    const formattedQuery = query.includes(' ')
+      ? 'name:"' + query + '"'
+      : 'name:' + query;
     const res = await fetch(
-      'https://api.pokemontcg.io/v2/cards?q=name:' +
-      encodeURIComponent(query) + '&pageSize=8'
+      'https://api.pokemontcg.io/v2/cards?q=' +
+      encodeURIComponent(formattedQuery) + '&pageSize=8'
     );
     const data = await res.json();
     console.log('Search result:', data);
