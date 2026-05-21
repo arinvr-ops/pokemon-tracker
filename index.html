@@ -601,8 +601,8 @@ header {
 #app { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 #auth-section {
   position: fixed; inset: 0; z-index: 9999;
-  background: #0b0d12;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px;
+  background: #0d0d0d;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
 }
 .auth-google-btn {
   display: flex; align-items: center; gap: 10px;
@@ -625,9 +625,9 @@ header {
 <body>
 
 <!-- AUTH SCREEN -->
-<div id="auth-section" style="gap:12px">
-  <img src="Poke_Ball.webp" alt="" style="width:72px;height:72px;object-fit:contain;animation:pokespin 3s linear infinite">
-  <img src="pokemon-logo.png" alt="Pokémon" style="height:160px;width:auto;object-fit:contain">
+<div id="auth-section">
+  <img src="Poke_Ball.webp" alt="" style="width:80px;height:80px;object-fit:contain;animation:pokespin 3s linear infinite">
+  <img src="pokemon-logo.png" alt="Pokémon" style="width:160px;height:auto;object-fit:contain">
   <div style="font-family:var(--mono);font-size:20px;font-weight:500;color:var(--text);letter-spacing:-.02em;text-align:center">PKM Card Tracker</div>
   <div style="font-size:13px;color:var(--text-3);text-align:center">Track your collection across all devices</div>
   <button class="auth-google-btn" onclick="signIn()">
